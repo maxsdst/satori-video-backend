@@ -9,6 +9,7 @@ mysqlclient = "*"
 djangorestframework = "*"
 djoser = "*"
 djangorestframework-simplejwt = "*"
+django-cors-headers = "*"
 
 [dev-packages]
 
