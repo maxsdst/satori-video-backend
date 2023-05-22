@@ -21,6 +21,7 @@ from django.urls import include, path
 api_urlpatterns = [
     path("auth/", include("djoser.urls")),
     path("auth/", include("djoser.urls.jwt")),
+    path("videos/", include("videos.urls")),
 ]
 
 urlpatterns = [
