@@ -12,6 +12,7 @@ djangorestframework-simplejwt = "*"
 django-cors-headers = "*"
 pillow = "*"
 python-ffmpeg-video-streaming = "*"
+ffmpeg-python = "*"
 
 [dev-packages]
 
