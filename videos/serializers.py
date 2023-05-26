@@ -14,7 +14,7 @@ class UploadSerializer(serializers.ModelSerializer):
         model = Upload
         fields = ["id", "user", "video"]
 
-    video = VideoSerializer
+    video = VideoSerializer()
 
 
 class CreateUploadSerializer(serializers.ModelSerializer):
