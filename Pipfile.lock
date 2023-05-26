@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "ec7513311c5e8852bfa95385e55823f266d0077d83d5b2eee8ea3bc7102fd178"
+            "sha256": "a0f76863253a8a2208911e3126f4cc8db17bb577944e90f402b25b4d6eeab9d7"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -18,11 +18,11 @@
     "default": {
         "asgiref": {
             "hashes": [
-                "sha256:71e68008da809b957b7ee4b43dbccff33d1b23519fb8344e33f049897077afac",
-                "sha256:9567dfe7bd8d3c8c892227827c41cce860b368104c3431da67a0c5a65a949506"
+                "sha256:33958cb2e4b3cd8b1b06ef295bd8605cde65b11df51d3beab39e2e149a610ab3",
+                "sha256:8de379fcc383bcfe4507e229fc31209ea23d4831c850f74063b2c11639474dd2"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==3.6.0"
+            "version": "==3.7.1"
         },
         "certifi": {
             "hashes": [
@@ -378,6 +378,14 @@
             "markers": "python_version >= '3.7'",
             "version": "==2.7.0"
         },
+        "python-ffmpeg-video-streaming": {
+            "hashes": [
+                "sha256:505690effd7e37154e39be11e035c47cee11b39e81a7bf16ae57c79b1a0c9520",
+                "sha256:67492c9f5552032a832696a5e14193dd5bb30be5826ed0acc5c7548b8b306a37"
+            ],
+            "index": "pypi",
+            "version": "==0.1.15"
+        },
         "python3-openid": {
             "hashes": [
                 "sha256:33fbf6928f401e0b790151ed2b5290b02545e8775f982485205a066f874aaeaf",
@@ -394,11 +402,11 @@
         },
         "requests": {
             "hashes": [
-                "sha256:10e94cc4f3121ee6da529d358cdaeaff2f1c409cd377dbc72b825852f2f7e294",
-                "sha256:239d7d4458afcb28a692cdd298d87542235f4ca8d36d03a15bfc128a6559a2f4"
+                "sha256:58cd2187c01e70e6e26505bca751777aa9f2ee0b7f4300988b709f44e013003f",
+                "sha256:942c5a758f98d790eaed1a29cb6eefc7ffb0d1cf7af05c3d2791656dbd6ad1e1"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==2.30.0"
+            "version": "==2.31.0"
         },
         "requests-oauthlib": {
             "hashes": [
