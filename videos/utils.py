@@ -6,6 +6,51 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 
 
+def create_vertical_video(input: Path, output: Path) -> None:
+    """
+    Creates vertical video with 9:16 aspect ratio by cropping it.
+
+    Parameters:
+        input (Path): Path to original video
+        output (Path): Path to output video
+    """
+
+    in_file = ffmpeg.input(str(input))
+    streams = []
+
+    if has_audio_stream(input):
+        streams.append(in_file.audio)
+
+    video = in_file.video.crop(
+        "(iw - min(iw, ih / 16 * 9)) / 2",
+        "(ih - min(ih, iw / 9 * 16)) / 2",
+        "min(iw, ih / 16 * 9)",
+        "min(ih, iw / 9 * 16)",
+    )
+
+    streams.append(video)
+
+    output.parent.mkdir(parents=True, exist_ok=True)
+    ffmpeg.output(*streams, str(output)).run()
+
+
+def has_audio_stream(input: Path) -> bool:
+    """
+    Checks if video has audio stream.
+
+    Parameters:
+        input (Path): Path to video
+    """
+
+    probe = ffmpeg.probe(str(input))
+
+    for stream in probe["streams"]:
+        if stream["codec_type"] == "audio":
+            return True
+
+    return False
+
+
 def make_hls(input: Path, output_folder: Path) -> Path:
     """
     Packages video for HLS streaming.

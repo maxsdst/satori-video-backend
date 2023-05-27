@@ -8,7 +8,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from .models import Upload, Video
 from .serializers import CreateUploadSerializer, UploadSerializer, VideoSerializer
-from .utils import create_thumbnail, get_media_url, make_hls
+from .utils import create_thumbnail, create_vertical_video, get_media_url, make_hls
 
 
 class VideoViewSet(ModelViewSet):
@@ -45,14 +45,22 @@ class UploadViewSet(ModelViewSet):
             thumbnail="",
         )
 
-        video_path = Path(upload.file.path)
-        output_folder = settings.MEDIA_ROOT / "videos" / str(video.id)
+        temp_folder = Path("temp")
+        upload_path = Path(upload.file.path)
+        video_path = temp_folder / upload_path.name
 
-        hls_playlist_path = make_hls(video_path, output_folder)
-        video.source = get_media_url(hls_playlist_path)
+        try:
+            create_vertical_video(upload_path, video_path)
 
-        thumbnail_path = create_thumbnail(video_path, output_folder)
-        video.thumbnail = get_media_url(thumbnail_path)
+            output_folder = settings.MEDIA_ROOT / "videos" / str(video.id)
+
+            hls_playlist_path = make_hls(video_path, output_folder)
+            video.source = get_media_url(hls_playlist_path)
+
+            thumbnail_path = create_thumbnail(video_path, output_folder)
+            video.thumbnail = get_media_url(thumbnail_path)
+        finally:
+            video_path.unlink(missing_ok=True)
 
         video.save()
 
