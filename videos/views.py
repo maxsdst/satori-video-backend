@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from django.conf import settings
 from django.db import transaction
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+from .constants import TEMP_FOLDER, VIDEOS_FOLDER
 from .models import Upload, Video
 from .serializers import CreateUploadSerializer, UploadSerializer, VideoSerializer
 from .utils import create_thumbnail, create_vertical_video, get_media_url, make_hls
@@ -45,14 +45,13 @@ class UploadViewSet(ModelViewSet):
             thumbnail="",
         )
 
-        temp_folder = Path("temp")
         upload_path = Path(upload.file.path)
-        video_path = temp_folder / upload_path.name
+        video_path = TEMP_FOLDER / upload_path.name
 
         try:
             create_vertical_video(upload_path, video_path)
 
-            output_folder = settings.MEDIA_ROOT / "videos" / str(video.id)
+            output_folder = VIDEOS_FOLDER / str(video.id)
 
             hls_playlist_path = make_hls(video_path, output_folder)
             video.source = get_media_url(hls_playlist_path)
