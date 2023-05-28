@@ -4,7 +4,7 @@ from .views import UploadViewSet, VideoViewSet
 
 
 router = DefaultRouter()
-router.register("videos", VideoViewSet)
-router.register("uploads", UploadViewSet)
+router.register("videos", VideoViewSet, basename="videos")
+router.register("uploads", UploadViewSet, basename="uploads")
 
 urlpatterns = router.urls

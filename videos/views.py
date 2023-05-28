@@ -4,6 +4,7 @@ from django.db import transaction
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.permissions import IsAuthenticated
 
 from .constants import TEMP_FOLDER, VIDEOS_FOLDER
 from .models import Upload, Video
@@ -19,7 +20,7 @@ class VideoViewSet(ModelViewSet):
 
 class UploadViewSet(ModelViewSet):
     http_method_names = ["get", "post", "head", "options"]
-    queryset = Upload.objects.all()
+    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -28,6 +29,10 @@ class UploadViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         return {"user_id": self.request.user.id}
+
+    def get_queryset(self):
+        user = self.request.user
+        return Upload.objects.filter(user_id=user.id)
 
     @transaction.atomic()
     def create(self, request: Request, *args, **kwargs):
