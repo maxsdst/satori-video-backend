@@ -20,3 +20,4 @@ class Upload(models.Model):
     video = models.ForeignKey(
         Video, on_delete=models.CASCADE, null=True, related_name="+"
     )
+    is_done = models.BooleanField(default=False)

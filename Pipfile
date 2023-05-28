@@ -13,8 +13,11 @@ django-cors-headers = "*"
 pillow = "*"
 python-ffmpeg-video-streaming = "*"
 ffmpeg-python = "*"
+celery = "*"
+redis = "*"
 
 [dev-packages]
+gevent = "*"
 
 [requires]
 python_version = "3.11"

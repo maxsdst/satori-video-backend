@@ -12,7 +12,7 @@ class VideoSerializer(serializers.ModelSerializer):
 class UploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Upload
-        fields = ["id", "user", "video"]
+        fields = ["id", "user", "video", "is_done"]
 
     video = VideoSerializer()
 

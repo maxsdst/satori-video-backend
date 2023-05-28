@@ -1,15 +1,12 @@
-from pathlib import Path
-
 from django.db import transaction
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.permissions import IsAuthenticated
 
-from .constants import TEMP_FOLDER, VIDEOS_FOLDER
 from .models import Upload, Video
 from .serializers import CreateUploadSerializer, UploadSerializer, VideoSerializer
-from .utils import create_thumbnail, create_vertical_video, get_media_url, make_hls
+from .tasks import handle_upload
 
 
 class VideoViewSet(ModelViewSet):
@@ -42,34 +39,7 @@ class UploadViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         upload: Upload = serializer.save()
 
-        video = Video.objects.create(
-            user_id=self.request.user.id,
-            title="",
-            description="",
-            source="",
-            thumbnail="",
-        )
-
-        upload_path = Path(upload.file.path)
-        video_path = TEMP_FOLDER / upload_path.name
-
-        try:
-            create_vertical_video(upload_path, video_path)
-
-            output_folder = VIDEOS_FOLDER / str(video.id)
-
-            hls_playlist_path = make_hls(video_path, output_folder)
-            video.source = get_media_url(hls_playlist_path)
-
-            thumbnail_path = create_thumbnail(video_path, output_folder)
-            video.thumbnail = get_media_url(thumbnail_path)
-        finally:
-            video_path.unlink(missing_ok=True)
-
-        video.save()
-
-        upload.video = video
-        upload.save()
+        handle_upload.delay(upload.id, self.request.user.id)
 
         serializer = UploadSerializer(upload)
         return Response(serializer.data)
