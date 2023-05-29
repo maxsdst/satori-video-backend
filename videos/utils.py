@@ -1,8 +1,13 @@
+import json
+import subprocess
+from inspect import isgenerator
 from pathlib import Path
+from typing import Generator
 
 import ffmpeg
 import ffmpeg_streaming
 from django.conf import settings
+from django.core.files.base import File
 from django.core.files.storage import default_storage
 
 
@@ -98,8 +103,58 @@ def create_thumbnail(input: Path, output_folder: Path) -> Path:
     return output
 
 
+def get_video_duration(file: bytes | Generator[bytes, None, None]) -> float:
+    """
+    Get duration of the video in seconds.
+
+    Parameters:
+        file (bytes | Generator[bytes, None, None]): Video as bytes or generator yielding chunks of it
+    """
+
+    probe = ffprobe(file)
+    return float(probe["format"]["duration"])
+
+
+def ffprobe(file: bytes | Generator[bytes, None, None]) -> dict:
+    """
+    Run ffprobe on the specified file and return a JSON representation of the output.
+
+    Parameters:
+        file (bytes | Generator[bytes, None, None]): Video as bytes or generator yielding chunks of it
+    """
+
+    args = ["ffprobe", "-show_format", "-of", "json", r"pipe:"]
+
+    process = subprocess.Popen(
+        args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL
+    )
+
+    try:
+        if isgenerator(file):
+            for chunk in file:
+                process.stdin.write(chunk)
+        else:
+            process.stdin.write(file)
+    except BrokenPipeError:
+        pass
+
+    process.stdin.close()
+    output, _ = process.communicate(timeout=10)
+
+    if process.returncode != 0:
+        raise Exception("ffprobe error")
+
+    return json.loads(output)
+
+
 def get_media_url(target: Path) -> str:
     """Returns URL of the file in MEDIA_ROOT folder."""
 
     relative_path = str(target).replace(str(settings.MEDIA_ROOT), "")
     return default_storage.url(relative_path)
+
+
+def get_file_extension(file: File) -> str:
+    """Get extension of the Django File."""
+
+    return Path(file.name).suffix.upper()[1:]

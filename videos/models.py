@@ -1,6 +1,12 @@
 from django.conf import settings
 from django.db import models
 
+from .validators import (
+    validate_video_duration,
+    validate_video_extension,
+    validate_video_size,
+)
+
 
 class Video(models.Model):
     user = models.ForeignKey(
@@ -16,7 +22,14 @@ class Upload(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="uploads"
     )
-    file = models.FileField(upload_to="uploads")
+    file = models.FileField(
+        upload_to="uploads",
+        validators=[
+            validate_video_extension,
+            validate_video_size,
+            validate_video_duration,
+        ],
+    )
     video = models.ForeignKey(
         Video, on_delete=models.CASCADE, null=True, related_name="+"
     )
