@@ -2,7 +2,8 @@ from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
 from .constants import ALLOWED_VIDEO_EXTENSIONS
-from .utils import get_file_extension, get_video_duration
+from .utils import get_file_extension
+from .video_processing import get_video_duration
 
 
 def validate_video_extension(file: InMemoryUploadedFile):

@@ -5,7 +5,8 @@ from django.db import transaction
 
 from .constants import TEMP_FOLDER, VIDEOS_FOLDER
 from .models import Upload, Video
-from .utils import create_thumbnail, create_vertical_video, get_media_url, make_hls
+from .utils import get_media_url
+from .video_processing import create_thumbnail, create_vertical_video, make_hls
 
 
 @shared_task()
