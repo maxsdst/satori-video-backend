@@ -18,6 +18,12 @@ redis = "*"
 
 [dev-packages]
 gevent = "*"
+pytest = "*"
+pytest-django = "*"
+model-bakery = "*"
+setuptools = "*"
+celery = {extras = ["pytest"], version = "*"}
+pytest-celery = "*"
 
 [requires]
 python_version = "3.11"

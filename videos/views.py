@@ -1,4 +1,5 @@
 from django.db import transaction
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -42,4 +43,4 @@ class UploadViewSet(ModelViewSet):
         handle_upload.delay(upload.id, self.request.user.id)
 
         serializer = UploadSerializer(upload)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
