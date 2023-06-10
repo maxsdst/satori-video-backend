@@ -39,6 +39,14 @@ def create_upload(api_client):
     return do_create_upload
 
 
+@pytest.fixture
+def retrieve_upload(api_client):
+    def do_retrieve_upload(id):
+        return api_client.get(reverse("uploads-detail", kwargs={"pk": id}))
+
+    return do_retrieve_upload
+
+
 @pytest.mark.django_db
 class TestCreateUpload:
     def test_if_user_is_anonymous_returns_401(self, create_upload):
@@ -99,4 +107,46 @@ class TestCreateUpload:
                 upload.refresh_from_db()
                 sleep(0.1)
 
+            assert upload.is_done == True
             assert upload.video.id > 0
+
+
+@pytest.mark.django_db
+class TestRetrieveUpload:
+    def test_if_user_is_anonymous_returns_401(self, retrieve_upload):
+        response = retrieve_upload(1)
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_if_upload_doesnt_exist_returns_404(self, authenticate, retrieve_upload):
+        authenticate()
+
+        response = retrieve_upload(1)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_if_upload_exists_and_user_doesnt_own_upload_returns_404(
+        self, retrieve_upload, authenticate, user
+    ):
+        authenticate()
+        upload = baker.make(Upload, user=user)
+
+        response = retrieve_upload(upload.id)
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_if_upload_exists_and_user_owns_upload_returns_200(
+        self, retrieve_upload, authenticate, user
+    ):
+        authenticate(user=user)
+        upload = baker.make(Upload, user=user)
+
+        response = retrieve_upload(upload.id)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data == {
+            "id": upload.id,
+            "user": user.id,
+            "video": None,
+            "is_done": False,
+        }
