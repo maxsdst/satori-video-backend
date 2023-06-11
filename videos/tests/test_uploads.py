@@ -47,6 +47,14 @@ def retrieve_upload(api_client):
     return do_retrieve_upload
 
 
+@pytest.fixture
+def list_uploads(api_client):
+    def do_list_uploads():
+        return api_client.get(reverse("uploads-list"))
+
+    return do_list_uploads
+
+
 @pytest.mark.django_db
 class TestCreateUpload:
     def test_if_user_is_anonymous_returns_401(self, create_upload):
@@ -126,10 +134,10 @@ class TestRetrieveUpload:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_if_upload_exists_and_user_doesnt_own_upload_returns_404(
-        self, retrieve_upload, authenticate, user
+        self, retrieve_upload, authenticate, user, other_user
     ):
-        authenticate()
-        upload = baker.make(Upload, user=user)
+        authenticate(user=user)
+        upload = baker.make(Upload, user=other_user)
 
         response = retrieve_upload(upload.id)
 
@@ -150,3 +158,40 @@ class TestRetrieveUpload:
             "video": None,
             "is_done": False,
         }
+
+
+@pytest.mark.django_db
+class TestListUpload:
+    def test_if_user_is_anonymous_returns_401(self, list_uploads):
+        response = list_uploads()
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_if_user_is_authenticated_returns_200(
+        self, authenticate, user, list_uploads
+    ):
+        authenticate(user=user)
+        upload = baker.make(Upload, user=user)
+
+        response = list_uploads()
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data) == 1
+        assert response.data[0] == {
+            "id": upload.id,
+            "user": user.id,
+            "video": None,
+            "is_done": False,
+        }
+
+    def test_user_can_only_get_own_uploads(
+        self, authenticate, user, other_user, list_uploads
+    ):
+        authenticate(user=user)
+        upload1 = baker.make(Upload, user=user)
+        upload2 = baker.make(Upload, user=other_user)
+
+        response = list_uploads()
+
+        assert len(response.data) == 1
+        assert response.data[0]["id"] == upload1.id

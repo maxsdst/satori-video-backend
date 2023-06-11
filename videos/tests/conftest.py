@@ -67,8 +67,18 @@ def authenticate(api_client):
     return do_authenticate
 
 
-@pytest.fixture
-def user():
+def create_user():
     username = "".join(random.sample(string.ascii_lowercase, 15))
     password = "password123"
-    return USER_MODEL.objects.create(username=username, password=password)
+    email = username + "@email.com"
+    return USER_MODEL.objects.create(username=username, password=password, email=email)
+
+
+@pytest.fixture
+def user():
+    return create_user()
+
+
+@pytest.fixture
+def other_user():
+    return create_user()
