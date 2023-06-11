@@ -1,6 +1,7 @@
 import random
 import shutil
 import string
+from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -19,6 +20,7 @@ USER_MODEL = apps.get_model(settings.AUTH_USER_MODEL)
 
 @pytest.fixture
 def generate_blank_video():
+    @contextmanager
     def do_generate_blank_video(
         *, width: int, height: int, duration: int, format: str
     ) -> Generator[BinaryIO, None, None]:

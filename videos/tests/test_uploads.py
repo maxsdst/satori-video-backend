@@ -16,19 +16,22 @@ CURRENT_FOLDER = Path(__file__).parent
 
 @pytest.fixture
 def valid_video(generate_blank_video):
-    return generate_blank_video(width=320, height=240, duration=1, format="mp4")
+    with generate_blank_video(width=320, height=240, duration=1, format="mp4") as video:
+        yield video
 
 
 @pytest.fixture
 def invalid_video(generate_blank_video):
-    return generate_blank_video(width=320, height=240, duration=1, format="mkv")
+    with generate_blank_video(width=320, height=240, duration=1, format="mkv") as video:
+        yield video
 
 
 @pytest.fixture
 def too_long_video(generate_blank_video):
-    return generate_blank_video(
+    with generate_blank_video(
         width=320, height=240, duration=MAX_VIDEO_DURATION_SECONDS + 1, format="mp4"
-    )
+    ) as video:
+        yield video
 
 
 @pytest.fixture
