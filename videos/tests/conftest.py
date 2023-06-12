@@ -22,7 +22,7 @@ USER_MODEL = apps.get_model(settings.AUTH_USER_MODEL)
 def generate_blank_video():
     @contextmanager
     def do_generate_blank_video(
-        *, width: int, height: int, duration: int, format: str
+        *, width: int, height: int, duration: int, format: str, add_audio: bool = False
     ) -> Generator[BinaryIO, None, None]:
         image = Image.new("RGB", (width, height), color="red")
         image_data = BytesIO()
@@ -32,11 +32,22 @@ def generate_blank_video():
         with TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / ("output." + format)
 
-            (
-                ffmpeg.input("pipe:", loop=1)
-                .output(str(output_path), t=duration, pix_fmt="yuv420p", r=1)
-                .run(input=image_data.read(), quiet=True)
-            )
+            streams = []
+
+            video = ffmpeg.input("pipe:", loop=1)
+            streams.append(video)
+
+            if add_audio:
+                audio = ffmpeg.input("anullsrc", f="lavfi")
+                streams.append(audio)
+
+            ffmpeg.output(
+                *streams,
+                str(output_path),
+                t=duration,
+                pix_fmt="yuv420p",
+                r=1,
+            ).run(input=image_data.read())
 
             with open(output_path, "rb") as file:
                 yield file
@@ -84,3 +95,9 @@ def user():
 @pytest.fixture
 def other_user():
     return create_user()
+
+
+@pytest.fixture
+def temp_dir():
+    with TemporaryDirectory() as temp_dir:
+        yield Path(temp_dir)
