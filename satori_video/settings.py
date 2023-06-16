@@ -149,6 +149,12 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
 }
 
+DJOSER = {
+    "SERIALIZERS": {
+        "user_create": "core.serializers.UserCreateSerializer",
+    },
+}
+
 AUTH_USER_MODEL = "core.User"
 
 CELERY_BROKER_URL = "redis://localhost:6379/1"
