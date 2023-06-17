@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "djoser",
     "corsheaders",
+    "debug_toolbar",
     "core",
     "profiles",
     "videos",
@@ -48,6 +49,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -158,3 +160,7 @@ DJOSER = {
 AUTH_USER_MODEL = "core.User"
 
 CELERY_BROKER_URL = "redis://localhost:6379/1"
+
+INTERNAL_IPS = [
+    "127.0.0.1",
+]
