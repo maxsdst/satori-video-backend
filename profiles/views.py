@@ -41,3 +41,13 @@ class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)
+
+    @action(
+        detail=False,
+        methods=["GET"],
+        url_path="retrieve_by_username/(?P<username>.+)",
+    )
+    def retrieve_by_username(self, request: Request, username: str):
+        profile = get_object_or_404(Profile, user__username=username)
+        serializer = ProfileSerializer(profile)
+        return Response(serializer.data)
