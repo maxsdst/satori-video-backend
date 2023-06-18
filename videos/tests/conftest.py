@@ -1,6 +1,4 @@
-import random
 import shutil
-import string
 from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
@@ -9,13 +7,7 @@ from typing import BinaryIO, Generator
 
 import ffmpeg
 import pytest
-from django.apps import apps
-from django.conf import settings
 from PIL import Image
-from rest_framework.test import APIClient
-
-
-USER_MODEL = apps.get_model(settings.AUTH_USER_MODEL)
 
 
 @pytest.fixture
@@ -62,39 +54,6 @@ def media_root(settings):
     settings.MEDIA_ROOT.mkdir()
     yield
     shutil.rmtree(settings.MEDIA_ROOT)
-
-
-@pytest.fixture
-def api_client():
-    return APIClient()
-
-
-@pytest.fixture
-def authenticate(api_client):
-    def do_authenticate(*, user=None, is_staff=False):
-        if user is None:
-            user = USER_MODEL()
-        user.is_staff = is_staff
-        return api_client.force_authenticate(user)
-
-    return do_authenticate
-
-
-def create_user():
-    username = "".join(random.sample(string.ascii_lowercase, 15))
-    password = "password123"
-    email = username + "@email.com"
-    return USER_MODEL.objects.create(username=username, password=password, email=email)
-
-
-@pytest.fixture
-def user():
-    return create_user()
-
-
-@pytest.fixture
-def other_user():
-    return create_user()
 
 
 @pytest.fixture
