@@ -1,24 +1,19 @@
 from contextlib import contextmanager
-from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import BinaryIO, Generator
 
 import ffmpeg
 import pytest
-from PIL import Image
 
 
 @pytest.fixture
-def generate_blank_video():
+def generate_blank_video(generate_blank_image):
     @contextmanager
     def do_generate_blank_video(
         *, width: int, height: int, duration: int, format: str, add_audio: bool = False
     ) -> Generator[BinaryIO, None, None]:
-        image = Image.new("RGB", (width, height), color="red")
-        image_data = BytesIO()
-        image.save(image_data, format="PNG")
-        image_data.seek(0)
+        image = generate_blank_image(width=width, height=height, format="PNG")
 
         with TemporaryDirectory() as temp_dir:
             output_path = Path(temp_dir) / ("output." + format)
@@ -38,7 +33,7 @@ def generate_blank_video():
                 t=duration,
                 pix_fmt="yuv420p",
                 r=1,
-            ).run(input=image_data.read())
+            ).run(input=image.read())
 
             with open(output_path, "rb") as file:
                 yield file
