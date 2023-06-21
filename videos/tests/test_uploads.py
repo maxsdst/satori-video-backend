@@ -37,7 +37,9 @@ def too_long_video(generate_blank_video):
 @pytest.fixture
 def create_upload(api_client):
     def do_create_upload(upload):
-        return api_client.post(reverse("uploads-list"), upload, format="multipart")
+        return api_client.post(
+            reverse("videos:uploads-list"), upload, format="multipart"
+        )
 
     return do_create_upload
 
@@ -45,7 +47,7 @@ def create_upload(api_client):
 @pytest.fixture
 def retrieve_upload(api_client):
     def do_retrieve_upload(id):
-        return api_client.get(reverse("uploads-detail", kwargs={"pk": id}))
+        return api_client.get(reverse("videos:uploads-detail", kwargs={"pk": id}))
 
     return do_retrieve_upload
 
@@ -53,7 +55,7 @@ def retrieve_upload(api_client):
 @pytest.fixture
 def list_uploads(api_client):
     def do_list_uploads():
-        return api_client.get(reverse("uploads-list"))
+        return api_client.get(reverse("videos:uploads-list"))
 
     return do_list_uploads
 
