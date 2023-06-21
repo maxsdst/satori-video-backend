@@ -1,4 +1,3 @@
-import shutil
 from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
@@ -45,15 +44,6 @@ def generate_blank_video():
                 yield file
 
     return do_generate_blank_video
-
-
-@pytest.fixture(autouse=True)
-def media_root(settings):
-    settings.MEDIA_ROOT = settings.BASE_DIR / "media_test"
-    shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
-    settings.MEDIA_ROOT.mkdir()
-    yield
-    shutil.rmtree(settings.MEDIA_ROOT)
 
 
 @pytest.fixture

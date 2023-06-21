@@ -23,8 +23,8 @@ from django.urls import include, path
 api_urlpatterns = [
     path("auth/", include("djoser.urls")),
     path("auth/", include("djoser.urls.jwt")),
-    path("profiles/", include("profiles.urls")),
-    path("videos/", include("videos.urls")),
+    path("profiles/", include("profiles.urls", "profiles")),
+    path("videos/", include("videos.urls", "videos")),
 ]
 
 urlpatterns = [
