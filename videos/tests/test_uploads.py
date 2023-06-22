@@ -53,6 +53,24 @@ def retrieve_upload(api_client):
 
 
 @pytest.fixture
+def update_upload(api_client):
+    def do_update_upload(id, upload):
+        return api_client.patch(
+            reverse("videos:uploads-detail", kwargs={"pk": id}), upload
+        )
+
+    return do_update_upload
+
+
+@pytest.fixture
+def delete_upload(api_client):
+    def do_delete_upload(id):
+        return api_client.delete(reverse("videos:uploads-detail", kwargs={"pk": id}))
+
+    return do_delete_upload
+
+
+@pytest.fixture
 def list_uploads(api_client):
     def do_list_uploads():
         return api_client.get(reverse("videos:uploads-list"))
@@ -163,6 +181,24 @@ class TestRetrieveUpload:
             "video": None,
             "is_done": False,
         }
+
+
+class TestUpdateUpload:
+    def test_returns_405(self, authenticate, update_upload):
+        authenticate()
+
+        response = update_upload(1, {})
+
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
+
+
+class TestDeleteUpload:
+    def test_returns_405(self, authenticate, delete_upload):
+        authenticate()
+
+        response = delete_upload(1)
+
+        assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
 @pytest.mark.django_db
