@@ -1,7 +1,12 @@
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from .constants import AVATAR_FILENAME_LENGTH, AVATAR_IMAGE_QUALITY
 from .models import Profile
+from .utils import convert_image_to_jpg, get_available_random_filename
 
 
 class CreateProfileSerializer(serializers.ModelSerializer):
@@ -24,3 +29,16 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = ["id", "user", "full_name", "description", "avatar"]
 
     user = UserSerializer(read_only=True)
+
+    def update(self, instance, validated_data):
+        if "avatar" in validated_data:
+            validated_data["avatar"] = convert_image_to_jpg(
+                validated_data["avatar"], quality=AVATAR_IMAGE_QUALITY
+            )
+            validated_data["avatar"].name = get_available_random_filename(
+                settings.MEDIA_ROOT / Profile.avatar.field.upload_to,
+                Path(validated_data["avatar"].name).suffix,
+                AVATAR_FILENAME_LENGTH,
+            )
+
+        return super().update(instance, validated_data)

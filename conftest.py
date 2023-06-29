@@ -7,6 +7,7 @@ from typing import BinaryIO
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.files import File
 from PIL import Image, UnidentifiedImageError
 from rest_framework.test import APIClient
 
@@ -58,12 +59,14 @@ def media_root(settings):
 
 @pytest.fixture
 def generate_blank_image():
-    def do_generate_blank_image(*, width: int, height: int, format: str) -> BinaryIO:
+    def do_generate_blank_image(
+        *, width: int, height: int, format: str, filename: str = "image"
+    ) -> BinaryIO:
         image = Image.new("RGB", (width, height), color="red")
         file = BytesIO()
         image.save(file, format=format)
         file.seek(0)
-        file.name = "image." + format.lower()
+        file.name = filename + "." + format.lower()
         return file
 
     return do_generate_blank_image
@@ -71,7 +74,7 @@ def generate_blank_image():
 
 @pytest.fixture
 def is_valid_image():
-    def _is_valid_image(input: Path) -> bool:
+    def _is_valid_image(input: Path | File) -> bool:
         try:
             with Image.open(input) as image:
                 image.verify()

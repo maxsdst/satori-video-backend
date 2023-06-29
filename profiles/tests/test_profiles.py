@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from django.conf import settings
 from django.urls import reverse
@@ -245,6 +247,41 @@ class TestUpdateOwnProfile:
         }
         assert avatar_path.exists()
         assert is_valid_image(avatar_path)
+
+    def test_avatar_file_gets_random_name(
+        self,
+        authenticate,
+        user,
+        generate_blank_image,
+        update_own_profile,
+    ):
+        authenticate(user=user)
+        profile = baker.make(Profile, user=user)
+        filename = "testfilename"
+        new_avatar = generate_blank_image(
+            width=100, height=100, format="PNG", filename=filename
+        )
+
+        response = update_own_profile({"avatar": new_avatar})
+        filename_after_update = Path(response.data["avatar"]).stem
+
+        assert filename not in filename_after_update
+
+    def test_avatar_gets_converted_to_jpg(
+        self,
+        authenticate,
+        user,
+        generate_blank_image,
+        update_own_profile,
+    ):
+        authenticate(user=user)
+        profile = baker.make(Profile, user=user)
+        new_avatar = generate_blank_image(width=100, height=100, format="PNG")
+
+        response = update_own_profile({"avatar": new_avatar})
+        avatar_extension = Path(response.data["avatar"]).suffix[1:]
+
+        assert avatar_extension == "jpg"
 
 
 @pytest.mark.django_db
