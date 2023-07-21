@@ -30,13 +30,14 @@ class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
             raise Http404("User has no profile")
 
         if request.method == "GET":
-            serializer = ProfileSerializer(profile)
+            serializer = ProfileSerializer(profile, context={"request": self.request})
             return Response(serializer.data)
         elif request.method == "PATCH":
             serializer = ProfileSerializer(
                 profile,
                 data=request.data,
                 partial=True,
+                context={"request": self.request},
             )
             serializer.is_valid(raise_exception=True)
             serializer.save()
@@ -51,5 +52,5 @@ class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
         profile = get_object_or_404(
             Profile.objects.select_related("user"), user__username=username
         )
-        serializer = ProfileSerializer(profile)
+        serializer = ProfileSerializer(profile, context={"request": self.request})
         return Response(serializer.data)

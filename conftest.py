@@ -9,7 +9,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.files import File
 from PIL import Image, UnidentifiedImageError
-from rest_framework.test import APIClient
+from rest_framework.test import APIClient, RequestsClient
 
 
 USER_MODEL = get_user_model()
@@ -18,6 +18,11 @@ USER_MODEL = get_user_model()
 @pytest.fixture
 def api_client():
     return APIClient()
+
+
+@pytest.fixture
+def requests_client():
+    return RequestsClient()
 
 
 @pytest.fixture
@@ -57,6 +62,11 @@ def media_root(settings):
     shutil.rmtree(settings.MEDIA_ROOT)
 
 
+@pytest.fixture(autouse=True)
+def debug(settings):
+    settings.DEBUG = True
+
+
 @pytest.fixture
 def generate_blank_image():
     def do_generate_blank_image(
@@ -73,8 +83,12 @@ def generate_blank_image():
 
 
 @pytest.fixture
-def is_valid_image():
-    def _is_valid_image(input: Path | File) -> bool:
+def is_valid_image(requests_client):
+    def _is_valid_image(input: str | Path | File) -> bool:
+        if isinstance(input, str):
+            response = requests_client.get(input)
+            input = BytesIO(response.content)
+
         try:
             with Image.open(input) as image:
                 image.verify()

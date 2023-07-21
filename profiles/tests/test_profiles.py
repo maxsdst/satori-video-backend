@@ -232,10 +232,6 @@ class TestUpdateOwnProfile:
                 "avatar": new_avatar,
             }
         )
-        avatar = response.data["avatar"]
-        if avatar.startswith("/"):
-            avatar = avatar[1:]
-        avatar_path = settings.MEDIA_ROOT / avatar
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data == {
@@ -245,8 +241,7 @@ class TestUpdateOwnProfile:
             "description": new_description,
             "avatar": response.data["avatar"],
         }
-        assert avatar_path.exists()
-        assert is_valid_image(avatar_path)
+        assert is_valid_image(response.data["avatar"])
 
     def test_avatar_file_gets_random_name(
         self,
