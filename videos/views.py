@@ -26,21 +26,21 @@ class UploadViewSet(ModelViewSet):
         return UploadSerializer
 
     def get_serializer_context(self):
-        return {"user_id": self.request.user.id}
+        return {"profile_id": self.request.user.profile.id}
 
     def get_queryset(self):
-        user = self.request.user
-        return Upload.objects.filter(user_id=user.id)
+        profile = self.request.user.profile
+        return Upload.objects.filter(profile_id=profile.id)
 
     @transaction.atomic()
     def create(self, request: Request, *args, **kwargs):
         serializer = CreateUploadSerializer(
-            data=request.data, context={"user_id": self.request.user.id}
+            data=request.data, context={"profile_id": self.request.user.profile.id}
         )
         serializer.is_valid(raise_exception=True)
         upload: Upload = serializer.save()
 
-        handle_upload.delay(upload.id, self.request.user.id)
+        handle_upload.delay(upload.id, self.request.user.profile.id)
 
         serializer = UploadSerializer(upload)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

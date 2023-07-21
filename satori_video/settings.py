@@ -164,3 +164,5 @@ CELERY_BROKER_URL = "redis://localhost:6379/1"
 INTERNAL_IPS = [
     "127.0.0.1",
 ]
+
+PROFILE_MODEL = "profiles.Profile"

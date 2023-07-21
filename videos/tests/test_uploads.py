@@ -3,9 +3,10 @@ from time import sleep, time
 
 import pytest
 from celery.contrib.testing.worker import start_worker
+from django.conf import settings
+from django.urls import reverse
 from model_bakery import baker
 from rest_framework import status
-from django.urls import reverse
 
 from videos.models import Upload
 
@@ -85,8 +86,9 @@ class TestCreateUpload:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_if_data_is_invalid_returns_400(self, authenticate, create_upload):
-        authenticate()
+    def test_if_data_is_invalid_returns_400(self, authenticate, user, create_upload):
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
 
         response = create_upload({"file": ""})
 
@@ -94,9 +96,10 @@ class TestCreateUpload:
         assert response.data["file"] is not None
 
     def test_if_video_extension_is_not_supported_returns_400(
-        self, authenticate, create_upload, invalid_video
+        self, authenticate, user, create_upload, invalid_video
     ):
-        authenticate()
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
 
         response = create_upload({"file": invalid_video})
 
@@ -104,9 +107,10 @@ class TestCreateUpload:
         assert response.data["file"] is not None
 
     def test_if_video_is_too_long_returns_400(
-        self, authenticate, create_upload, too_long_video
+        self, authenticate, user, create_upload, too_long_video
     ):
-        authenticate()
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
 
         response = create_upload({"file": too_long_video})
 
@@ -117,6 +121,7 @@ class TestCreateUpload:
         self, authenticate, create_upload, valid_video, user
     ):
         authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
 
         response = create_upload({"file": valid_video})
 
@@ -129,6 +134,7 @@ class TestCreateUpload:
     ):
         with start_worker(celery_app):
             authenticate(user=user)
+            baker.make(settings.PROFILE_MODEL, user=user)
 
             response = create_upload({"file": valid_video})
             upload_id = response.data["id"]
@@ -149,8 +155,11 @@ class TestRetrieveUpload:
 
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_if_upload_doesnt_exist_returns_404(self, authenticate, retrieve_upload):
-        authenticate()
+    def test_if_upload_doesnt_exist_returns_404(
+        self, authenticate, user, retrieve_upload
+    ):
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
 
         response = retrieve_upload(1)
 
@@ -160,7 +169,9 @@ class TestRetrieveUpload:
         self, retrieve_upload, authenticate, user, other_user
     ):
         authenticate(user=user)
-        upload = baker.make(Upload, user=other_user)
+        baker.make(settings.PROFILE_MODEL, user=user)
+        other_profile = baker.make(settings.PROFILE_MODEL, user=other_user)
+        upload = baker.make(Upload, profile=other_profile)
 
         response = retrieve_upload(upload.id)
 
@@ -170,14 +181,15 @@ class TestRetrieveUpload:
         self, retrieve_upload, authenticate, user
     ):
         authenticate(user=user)
-        upload = baker.make(Upload, user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        upload = baker.make(Upload, profile=profile)
 
         response = retrieve_upload(upload.id)
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data == {
             "id": upload.id,
-            "user": user.id,
+            "profile": profile.id,
             "video": None,
             "is_done": False,
         }
@@ -212,7 +224,8 @@ class TestListUpload:
         self, authenticate, user, list_uploads
     ):
         authenticate(user=user)
-        upload = baker.make(Upload, user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        upload = baker.make(Upload, profile=profile)
 
         response = list_uploads()
 
@@ -220,7 +233,7 @@ class TestListUpload:
         assert len(response.data) == 1
         assert response.data[0] == {
             "id": upload.id,
-            "user": user.id,
+            "profile": profile.id,
             "video": None,
             "is_done": False,
         }
@@ -229,8 +242,10 @@ class TestListUpload:
         self, authenticate, user, other_user, list_uploads
     ):
         authenticate(user=user)
-        upload1 = baker.make(Upload, user=user)
-        upload2 = baker.make(Upload, user=other_user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        other_profile = baker.make(settings.PROFILE_MODEL, user=other_user)
+        upload1 = baker.make(Upload, profile=profile)
+        upload2 = baker.make(Upload, profile=other_profile)
 
         response = list_uploads()
 

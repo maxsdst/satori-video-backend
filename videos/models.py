@@ -9,8 +9,8 @@ from .validators import (
 
 
 class Video(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="videos"
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="videos"
     )
     title = models.CharField(max_length=100)
     description = models.TextField(max_length=2000)
@@ -19,8 +19,8 @@ class Video(models.Model):
 
 
 class Upload(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="uploads"
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="uploads"
     )
     file = models.FileField(
         upload_to="uploads",

@@ -6,13 +6,13 @@ from .models import Upload, Video
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
-        fields = ["id", "user", "title", "description", "source", "thumbnail"]
+        fields = ["id", "profile", "title", "description", "source", "thumbnail"]
 
 
 class UploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Upload
-        fields = ["id", "user", "video", "is_done"]
+        fields = ["id", "profile", "video", "is_done"]
 
     video = VideoSerializer()
 
@@ -23,4 +23,6 @@ class CreateUploadSerializer(serializers.ModelSerializer):
         fields = ["id", "file"]
 
     def create(self, validated_data: dict):
-        return Upload.objects.create(user_id=self.context["user_id"], **validated_data)
+        return Upload.objects.create(
+            profile_id=self.context["profile_id"], **validated_data
+        )

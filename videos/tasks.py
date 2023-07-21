@@ -12,13 +12,13 @@ from .video_processing import create_thumbnail, create_vertical_video, make_hls
 
 @shared_task()
 @transaction.atomic()
-def handle_upload(upload_id: int, user_id: int) -> None:
+def handle_upload(upload_id: int, profile_id: int) -> None:
     VIDEOS_FOLDER = settings.MEDIA_ROOT / "videos"
 
     upload = Upload.objects.get(id=upload_id)
 
     video = Video.objects.create(
-        user_id=user_id,
+        profile_id=profile_id,
         title="",
         description="",
         source="",
