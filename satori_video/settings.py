@@ -166,3 +166,4 @@ INTERNAL_IPS = [
 ]
 
 PROFILE_MODEL = "profiles.Profile"
+PROFILE_SERIALIZER = "profiles.serializers.ProfileSerializer"

@@ -1,12 +1,19 @@
+from django.conf import settings
+from django.utils.module_loading import import_string
 from rest_framework import serializers
 
 from .models import Upload, Video
+
+
+PROFILE_SERIALIZER = import_string(settings.PROFILE_SERIALIZER)
 
 
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
         fields = ["id", "profile", "title", "description", "source", "thumbnail"]
+
+    profile = PROFILE_SERIALIZER()
 
 
 class UploadSerializer(serializers.ModelSerializer):
