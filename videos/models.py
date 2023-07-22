@@ -14,8 +14,8 @@ class Video(models.Model):
     )
     title = models.CharField(max_length=100)
     description = models.TextField(max_length=2000)
-    source = models.URLField()
-    thumbnail = models.URLField()
+    source = models.FileField()
+    thumbnail = models.FileField()
 
 
 class Upload(models.Model):

@@ -3,10 +3,11 @@ from pathlib import Path
 from celery import shared_task
 from django.conf import settings
 from django.db import transaction
+from django.db.models.fields.files import FieldFile
 
 from .constants import TEMP_FOLDER
 from .models import Upload, Video
-from .utils import get_media_url
+from .utils import get_media_path
 from .video_processing import create_thumbnail, create_vertical_video, make_hls
 
 
@@ -34,10 +35,12 @@ def handle_upload(upload_id: int, profile_id: int) -> None:
         output_folder = VIDEOS_FOLDER / str(video.id)
 
         hls_playlist_path = make_hls(video_path, output_folder)
-        video.source = get_media_url(hls_playlist_path)
+        video.source = FieldFile(video, video.source, get_media_path(hls_playlist_path))
 
         thumbnail_path = create_thumbnail(video_path, output_folder)
-        video.thumbnail = get_media_url(thumbnail_path)
+        video.thumbnail = FieldFile(
+            video, video.thumbnail, get_media_path(thumbnail_path)
+        )
     finally:
         video_path.unlink(missing_ok=True)
 

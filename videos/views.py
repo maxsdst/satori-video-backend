@@ -31,7 +31,7 @@ class UploadViewSet(ModelViewSet):
         return UploadSerializer
 
     def get_serializer_context(self):
-        return {"profile_id": self.request.user.profile.id}
+        return {"request": self.request, "profile_id": self.request.user.profile.id}
 
     def get_queryset(self):
         profile = self.request.user.profile
@@ -47,5 +47,5 @@ class UploadViewSet(ModelViewSet):
 
         handle_upload.delay(upload.id, self.request.user.profile.id)
 
-        serializer = UploadSerializer(upload)
+        serializer = UploadSerializer(upload, context={"request": self.request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
