@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from .models import Upload, Video
+from .permissions import UserOwnsObjectOrReadOnly
 from .serializers import CreateUploadSerializer, UploadSerializer, VideoSerializer
 from .tasks import handle_upload
 
@@ -14,6 +15,7 @@ class VideoViewSet(ModelViewSet):
     http_method_names = ["get", "patch", "delete", "head", "options"]
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
+    permission_classes = [UserOwnsObjectOrReadOnly]
 
 
 class UploadViewSet(ModelViewSet):
