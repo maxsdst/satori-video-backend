@@ -1,4 +1,5 @@
 from django.db import transaction
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
@@ -16,6 +17,8 @@ class VideoViewSet(ModelViewSet):
     queryset = Video.objects.all()
     serializer_class = VideoSerializer
     permission_classes = [UserOwnsObjectOrReadOnly]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["profile"]
 
 
 class UploadViewSet(ModelViewSet):

@@ -15,6 +15,7 @@ python-ffmpeg-video-streaming = "*"
 ffmpeg-python = "*"
 celery = "*"
 redis = "*"
+django-filter = "*"
 
 [dev-packages]
 gevent = "*"
