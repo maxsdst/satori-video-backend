@@ -13,7 +13,7 @@ class Video(models.Model):
         settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="videos"
     )
     title = models.CharField(max_length=100)
-    description = models.TextField(max_length=2000)
+    description = models.TextField(max_length=2000, blank=True)
     source = models.FileField()
     thumbnail = models.FileField()
     first_frame = models.FileField()
