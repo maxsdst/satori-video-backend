@@ -7,6 +7,7 @@ from PIL import Image, UnidentifiedImageError
 from videos.video_processing import (
     create_thumbnail,
     create_vertical_video,
+    extract_first_frame,
     ffprobe,
     get_video_duration,
     has_audio_stream,
@@ -200,6 +201,30 @@ class TestCreateThumbnail:
             thumbnail_path = create_thumbnail(video_path, temp_dir)
 
             assert is_valid_image(thumbnail_path)
+
+
+class TestExtractFirstFrame:
+    def test_first_frame_is_created(self, generate_blank_video, temp_dir):
+        with generate_blank_video(
+            width=320, height=240, duration=1, format="mp4"
+        ) as video:
+            video_path = Path(video.name)
+
+            first_frame_path = extract_first_frame(video_path, temp_dir)
+
+            assert first_frame_path.suffix == ".jpg"
+            assert first_frame_path.exists()
+            assert (temp_dir / first_frame_path.name).exists()
+
+    def test_first_frame_is_valid_image(self, generate_blank_video, temp_dir):
+        with generate_blank_video(
+            width=320, height=240, duration=1, format="mp4"
+        ) as video:
+            video_path = Path(video.name)
+
+            first_frame_path = extract_first_frame(video_path, temp_dir)
+
+            assert is_valid_image(first_frame_path)
 
 
 class TestGetVideoDuration:

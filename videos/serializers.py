@@ -11,7 +11,16 @@ PROFILE_SERIALIZER = import_string(settings.PROFILE_SERIALIZER)
 class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
-        fields = ["id", "profile", "title", "description", "source", "thumbnail"]
+        fields = [
+            "id",
+            "profile",
+            "title",
+            "description",
+            "source",
+            "thumbnail",
+            "first_frame",
+        ]
+        read_only_fields = ["profile", "source", "thumbnail", "first_frame"]
 
     profile = PROFILE_SERIALIZER()
 

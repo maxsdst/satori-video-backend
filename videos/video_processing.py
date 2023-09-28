@@ -100,6 +100,26 @@ def create_thumbnail(input: Path, output_folder: Path) -> Path:
     return output
 
 
+def extract_first_frame(input: Path, output_folder: Path) -> Path:
+    """
+    Extract first frame from video and write it to output_folder.
+    Returns path to first frame.
+
+    Parameters:
+        input (Path): Path to video
+        output_folder (Path): Path to output folder
+    """
+
+    time = "00:00:00"  # first frame
+    file_name = "frame0.jpg"
+
+    output = output_folder / file_name
+
+    ffmpeg.input(str(input), ss=time).output(str(output), vframes=1).run()
+
+    return output
+
+
 def get_video_duration(file: bytes | Generator[bytes, None, None]) -> float:
     """
     Get duration of the video in seconds.

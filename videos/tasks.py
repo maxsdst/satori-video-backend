@@ -8,7 +8,12 @@ from django.db.models.fields.files import FieldFile
 from .constants import TEMP_FOLDER
 from .models import Upload, Video
 from .utils import get_media_path
-from .video_processing import create_thumbnail, create_vertical_video, make_hls
+from .video_processing import (
+    create_thumbnail,
+    create_vertical_video,
+    extract_first_frame,
+    make_hls,
+)
 
 
 @shared_task()
@@ -40,6 +45,11 @@ def handle_upload(upload_id: int, profile_id: int) -> None:
         thumbnail_path = create_thumbnail(video_path, output_folder)
         video.thumbnail = FieldFile(
             video, video.thumbnail, get_media_path(thumbnail_path)
+        )
+
+        first_frame_path = extract_first_frame(video_path, output_folder)
+        video.first_frame = FieldFile(
+            video, video.first_frame, get_media_path(first_frame_path)
         )
     finally:
         video_path.unlink(missing_ok=True)
