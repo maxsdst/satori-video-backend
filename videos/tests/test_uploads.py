@@ -73,8 +73,14 @@ def delete_upload(api_client):
 
 @pytest.fixture
 def list_uploads(api_client):
-    def do_list_uploads():
-        return api_client.get(reverse("videos:uploads-list"))
+    def do_list_uploads(limit: int = None, offset: int = None):
+        query = {}
+        if limit is not None:
+            query["limit"] = limit
+        if offset is not None:
+            query["offset"] = offset
+
+        return api_client.get(reverse("videos:uploads-list"), query)
 
     return do_list_uploads
 
@@ -230,8 +236,8 @@ class TestListUpload:
         response = list_uploads()
 
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.data) == 1
-        assert response.data[0] == {
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0] == {
             "id": upload.id,
             "profile": profile.id,
             "video": None,
@@ -249,5 +255,25 @@ class TestListUpload:
 
         response = list_uploads()
 
-        assert len(response.data) == 1
-        assert response.data[0]["id"] == upload1.id
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == upload1.id
+
+    def test_limit_offset_pagination(self, authenticate, user, list_uploads):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        uploads = [baker.make(Upload, profile=profile) for i in range(3)]
+
+        response1 = list_uploads(limit=2)
+        response2 = list_uploads(limit=2, offset=2)
+
+        assert response1.data["count"] == 3
+        assert response1.data["previous"] is None
+        assert response1.data["next"] is not None
+        assert len(response1.data["results"]) == 2
+        assert response1.data["results"][0]["id"] == uploads[0].id
+        assert response1.data["results"][1]["id"] == uploads[1].id
+        assert response2.data["count"] == 3
+        assert response2.data["previous"] is not None
+        assert response2.data["next"] is None
+        assert len(response2.data["results"]) == 1
+        assert response2.data["results"][0]["id"] == uploads[2].id
