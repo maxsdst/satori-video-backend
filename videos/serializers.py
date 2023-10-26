@@ -14,13 +14,20 @@ class VideoSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "profile",
+            "upload_date",
             "title",
             "description",
             "source",
             "thumbnail",
             "first_frame",
         ]
-        read_only_fields = ["profile", "source", "thumbnail", "first_frame"]
+        read_only_fields = [
+            "profile",
+            "upload_date",
+            "source",
+            "thumbnail",
+            "first_frame",
+        ]
 
     profile = PROFILE_SERIALIZER()
 
