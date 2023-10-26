@@ -19,8 +19,12 @@ class VideoViewSet(ModelViewSet):
     serializer_class = VideoSerializer
     permission_classes = [UserOwnsObjectOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["profile"]
-    ordering_fields = ["title"]
+    filterset_fields = {
+        "profile": ["exact"],
+        "title": ["icontains"],
+        "description": ["icontains"],
+    }
+    ordering_fields = ["title", "upload_date"]
 
 
 class UploadViewSet(ModelViewSet):
