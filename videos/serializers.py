@@ -35,7 +35,7 @@ class VideoSerializer(serializers.ModelSerializer):
 class UploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Upload
-        fields = ["id", "profile", "video", "is_done"]
+        fields = ["id", "profile", "filename", "video", "is_done"]
 
     video = VideoSerializer()
 
@@ -47,5 +47,7 @@ class CreateUploadSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: dict):
         return Upload.objects.create(
-            profile_id=self.context["profile_id"], **validated_data
+            **validated_data,
+            profile_id=self.context["profile_id"],
+            filename=validated_data["file"].name
         )

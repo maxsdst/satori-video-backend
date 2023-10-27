@@ -32,6 +32,7 @@ class Upload(models.Model):
             validate_video_duration,
         ],
     )
+    filename = models.CharField(max_length=100)
     video = models.ForeignKey(
         Video, on_delete=models.CASCADE, null=True, related_name="+"
     )
