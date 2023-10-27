@@ -24,6 +24,7 @@ class Upload(models.Model):
     profile = models.ForeignKey(
         settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="uploads"
     )
+    creation_date = models.DateTimeField(auto_now_add=True)
     file = models.FileField(
         upload_to="uploads",
         validators=[
