@@ -30,7 +30,11 @@ class VideoViewSet(ModelViewSet):
 class UploadViewSet(ModelViewSet):
     http_method_names = ["get", "post", "head", "options"]
     permission_classes = [IsAuthenticated]
-    filter_backends = [OrderingFilter]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = {
+        "filename": ["icontains"],
+        "is_done": ["exact"],
+    }
     ordering_fields = ["filename", "creation_date", "is_done"]
 
     def get_serializer_class(self):
