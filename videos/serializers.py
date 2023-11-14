@@ -3,8 +3,9 @@ from django.db import transaction
 from django.utils.module_loading import import_string
 from rest_framework import serializers
 
-from .models import Upload, Video
+from .models import Upload, Video, View
 from .signals import video_updated
+
 
 PROFILE_SERIALIZER = import_string(settings.PROFILE_SERIALIZER)
 
@@ -21,6 +22,7 @@ class VideoSerializer(serializers.ModelSerializer):
             "source",
             "thumbnail",
             "first_frame",
+            "view_count",
         ]
         read_only_fields = [
             "profile",
@@ -28,9 +30,11 @@ class VideoSerializer(serializers.ModelSerializer):
             "source",
             "thumbnail",
             "first_frame",
+            "view_count",
         ]
 
     profile = PROFILE_SERIALIZER()
+    view_count = serializers.IntegerField()
 
     @transaction.atomic()
     def update(self, instance, validated_data):
@@ -56,5 +60,18 @@ class CreateUploadSerializer(serializers.ModelSerializer):
         return Upload.objects.create(
             **validated_data,
             profile_id=self.context["profile_id"],
-            filename=validated_data["file"].name
+            filename=validated_data["file"].name,
+        )
+
+
+class CreateViewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = View
+        fields = ["id", "video"]
+
+    def create(self, validated_data: dict):
+        return View.objects.create(
+            **validated_data,
+            profile_id=self.context["profile_id"],
+            session_id=self.context["session_id"],
         )
