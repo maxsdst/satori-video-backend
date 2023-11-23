@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-from django.conf import settings
 from django.urls import reverse
 from model_bakery import baker
 from rest_framework import status
@@ -79,6 +78,7 @@ def retrieve_profile_by_username(api_client):
     return do_retrieve_profile_by_username
 
 
+@pytest.mark.django_db
 class TestCreateProfile:
     def test_returns_404(self, create_profile):
         response = create_profile({})
@@ -108,6 +108,7 @@ class TestRetrieveProfile:
         }
 
 
+@pytest.mark.django_db
 class TestUpdateProfile:
     def test_returns_405(self, update_profile):
         response = update_profile(1, {})
@@ -115,6 +116,7 @@ class TestUpdateProfile:
         assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
+@pytest.mark.django_db
 class TestDeleteProfile:
     def test_returns_405(self, delete_profile):
         response = delete_profile(1)
@@ -122,6 +124,7 @@ class TestDeleteProfile:
         assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
+@pytest.mark.django_db
 class TestListProfiles:
     def test_returns_404(self, list_profiles):
         response = list_profiles()
@@ -163,7 +166,7 @@ class TestRetrieveOwnProfile:
         }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestUpdateOwnProfile:
     def test_if_user_is_anonymous_returns_401(self, update_own_profile):
         response = update_own_profile({})

@@ -1,6 +1,7 @@
 import random
 import shutil
 import string
+from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO
@@ -98,3 +99,16 @@ def is_valid_image(requests_client):
         return True
 
     return _is_valid_image
+
+
+@pytest.fixture
+def isoformat():
+    def _isoformat(datetime: datetime) -> str:
+        value = datetime.isoformat()
+
+        if value.endswith("+00:00"):
+            value = value[:-6] + "Z"
+
+        return value
+
+    return _isoformat

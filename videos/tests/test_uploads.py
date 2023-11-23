@@ -184,7 +184,7 @@ class TestRetrieveUpload:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_if_upload_exists_and_user_owns_upload_returns_200(
-        self, retrieve_upload, authenticate, user
+        self, retrieve_upload, authenticate, user, isoformat
     ):
         authenticate(user=user)
         profile = baker.make(settings.PROFILE_MODEL, user=user)
@@ -196,11 +196,14 @@ class TestRetrieveUpload:
         assert response.data == {
             "id": upload.id,
             "profile": profile.id,
+            "creation_date": isoformat(upload.creation_date),
+            "filename": upload.filename,
             "video": None,
             "is_done": False,
         }
 
 
+@pytest.mark.django_db
 class TestUpdateUpload:
     def test_returns_405(self, authenticate, update_upload):
         authenticate()
@@ -210,6 +213,7 @@ class TestUpdateUpload:
         assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
+@pytest.mark.django_db
 class TestDeleteUpload:
     def test_returns_405(self, authenticate, delete_upload):
         authenticate()
@@ -227,7 +231,7 @@ class TestListUpload:
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_if_user_is_authenticated_returns_200(
-        self, authenticate, user, list_uploads
+        self, authenticate, user, list_uploads, isoformat
     ):
         authenticate(user=user)
         profile = baker.make(settings.PROFILE_MODEL, user=user)
@@ -240,6 +244,8 @@ class TestListUpload:
         assert response.data["results"][0] == {
             "id": upload.id,
             "profile": profile.id,
+            "creation_date": isoformat(upload.creation_date),
+            "filename": upload.filename,
             "video": None,
             "is_done": False,
         }
