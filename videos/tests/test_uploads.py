@@ -292,6 +292,65 @@ class TestListUpload:
         assert response.data["results"][0]["id"] == upload1.id
         assert response.data["results"][1]["id"] == upload2.id
 
+    def test_ordering_by_filename(self, authenticate, user, list_uploads, ordering):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        upload1 = baker.make(Upload, profile=profile, filename="c.mp4")
+        upload2 = baker.make(Upload, profile=profile, filename="a.mp4")
+        upload3 = baker.make(Upload, profile=profile, filename="b.mp4")
+
+        response1 = list_uploads(ordering=ordering(field="filename", direction="ASC"))
+        response2 = list_uploads(ordering=ordering(field="filename", direction="DESC"))
+
+        assert response1.data["results"][0]["id"] == upload2.id
+        assert response1.data["results"][1]["id"] == upload3.id
+        assert response1.data["results"][2]["id"] == upload1.id
+        assert response2.data["results"][0]["id"] == upload1.id
+        assert response2.data["results"][1]["id"] == upload3.id
+        assert response2.data["results"][2]["id"] == upload2.id
+
+    def test_ordering_by_creation_date(
+        self, authenticate, user, list_uploads, ordering
+    ):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        upload1 = baker.make(Upload, profile=profile)
+        sleep(0.0001)
+        upload2 = baker.make(Upload, profile=profile)
+        sleep(0.0001)
+        upload3 = baker.make(Upload, profile=profile)
+
+        response1 = list_uploads(
+            ordering=ordering(field="creation_date", direction="ASC")
+        )
+        response2 = list_uploads(
+            ordering=ordering(field="creation_date", direction="DESC")
+        )
+
+        assert response1.data["results"][0]["id"] == upload1.id
+        assert response1.data["results"][1]["id"] == upload2.id
+        assert response1.data["results"][2]["id"] == upload3.id
+        assert response2.data["results"][0]["id"] == upload3.id
+        assert response2.data["results"][1]["id"] == upload2.id
+        assert response2.data["results"][2]["id"] == upload1.id
+
+    def test_ordering_by_is_done(self, authenticate, user, list_uploads, ordering):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        upload1 = baker.make(Upload, profile=profile, is_done=False)
+        upload2 = baker.make(Upload, profile=profile, is_done=True)
+        upload3 = baker.make(Upload, profile=profile, is_done=True)
+
+        response1 = list_uploads(ordering=ordering(field="is_done", direction="ASC"))
+        response2 = list_uploads(ordering=ordering(field="is_done", direction="DESC"))
+
+        assert response1.data["results"][0]["id"] == upload1.id
+        assert response1.data["results"][1]["id"] == upload2.id
+        assert response1.data["results"][2]["id"] == upload3.id
+        assert response2.data["results"][0]["id"] == upload2.id
+        assert response2.data["results"][1]["id"] == upload3.id
+        assert response2.data["results"][2]["id"] == upload1.id
+
     def test_limit_offset_pagination(
         self, authenticate, user, list_uploads, pagination
     ):
