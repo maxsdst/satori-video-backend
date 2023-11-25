@@ -23,9 +23,11 @@ def handle_upload(upload_id: int, profile_id: int) -> None:
 
     upload = Upload.objects.get(id=upload_id)
 
+    title = Path(upload.filename).stem
+
     video = Video.objects.create(
         profile_id=profile_id,
-        title="",
+        title=title,
         description="",
         source="",
         thumbnail="",

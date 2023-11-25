@@ -148,6 +148,25 @@ class TestCreateUpload:
             assert upload.is_done == True
             assert upload.video.id > 0
 
+    @pytest.mark.django_db(transaction=True)
+    def test_derives_video_title_from_filename(
+        self, authenticate, create_upload, valid_video, user, celery_app
+    ):
+        with start_worker(celery_app):
+            authenticate(user=user)
+            baker.make(settings.PROFILE_MODEL, user=user)
+
+            response = create_upload({"file": valid_video})
+            upload_id = response.data["id"]
+            upload = Upload.objects.get(id=upload_id)
+            timer = time() + 20
+            while not upload.is_done and time() < timer:
+                upload.refresh_from_db()
+                sleep(0.1)
+
+            assert upload.video.title != ""
+            assert upload.video.title == Path(valid_video.name).stem
+
 
 @pytest.mark.django_db
 class TestRetrieveUpload:
