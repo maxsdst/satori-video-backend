@@ -72,14 +72,9 @@ def delete_upload(api_client):
 
 
 @pytest.fixture
-def list_uploads(api_client):
-    def do_list_uploads(limit: int = None, offset: int = None):
-        query = {}
-        if limit is not None:
-            query["limit"] = limit
-        if offset is not None:
-            query["offset"] = offset
-
+def list_uploads(api_client, build_query):
+    def do_list_uploads(*, filters=None, ordering=None, pagination=None):
+        query = build_query(filters=filters, ordering=ordering, pagination=pagination)
         return api_client.get(reverse("videos:uploads-list"), query)
 
     return do_list_uploads
@@ -264,13 +259,48 @@ class TestListUpload:
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["id"] == upload1.id
 
-    def test_limit_offset_pagination(self, authenticate, user, list_uploads):
+    def test_filtering_by_filename(self, authenticate, user, list_uploads, filter):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        value = "test"
+        upload1 = baker.make(Upload, profile=profile, filename=f"{value}1.mp4")
+        upload2 = baker.make(Upload, profile=profile, filename=f"{value}2.mp4")
+        upload3 = baker.make(Upload, profile=profile, filename="abc.mp4")
+
+        response = list_uploads(
+            filters=[filter(field="filename", lookup_type="icontains", value=value)]
+        )
+
+        assert response.data["count"] == 2
+        assert len(response.data["results"]) == 2
+        assert response.data["results"][0]["id"] == upload1.id
+        assert response.data["results"][1]["id"] == upload2.id
+
+    def test_filtering_by_is_done(self, authenticate, user, list_uploads, filter):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        upload1 = baker.make(Upload, profile=profile, is_done=True)
+        upload2 = baker.make(Upload, profile=profile, is_done=True)
+        upload3 = baker.make(Upload, profile=profile, is_done=False)
+
+        response = list_uploads(
+            filters=[filter(field="is_done", lookup_type="exact", value="true")]
+        )
+
+        assert response.data["count"] == 2
+        assert len(response.data["results"]) == 2
+        assert response.data["results"][0]["id"] == upload1.id
+        assert response.data["results"][1]["id"] == upload2.id
+
+    def test_limit_offset_pagination(
+        self, authenticate, user, list_uploads, pagination
+    ):
         authenticate(user=user)
         profile = baker.make(settings.PROFILE_MODEL, user=user)
         uploads = [baker.make(Upload, profile=profile) for i in range(3)]
 
-        response1 = list_uploads(limit=2)
-        response2 = list_uploads(limit=2, offset=2)
+        response1 = list_uploads(pagination=pagination(limit=2))
+        response2 = list_uploads(pagination=pagination(limit=2, offset=2))
 
         assert response1.data["count"] == 3
         assert response1.data["previous"] is None

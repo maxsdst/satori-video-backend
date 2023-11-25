@@ -1,10 +1,11 @@
 import random
 import shutil
 import string
+from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import BinaryIO
+from typing import BinaryIO, Literal
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -112,3 +113,78 @@ def isoformat():
         return value
 
     return _isoformat
+
+
+@dataclass(kw_only=True)
+class Filter:
+    field: str
+    lookup_type: str
+    value: str | int | bool
+
+
+@pytest.fixture
+def filter():
+    return Filter
+
+
+@dataclass(kw_only=True)
+class Ordering:
+    field: str
+    direction: Literal["ASC", "DESC"]
+
+
+@pytest.fixture
+def ordering():
+    return Ordering
+
+
+@dataclass(kw_only=True)
+class Pagination:
+    limit: int = None
+    offset: int = None
+
+
+@pytest.fixture
+def pagination():
+    return Pagination
+
+
+@pytest.fixture
+def build_query():
+    def apply_filters(filters: list[Filter], query: dict):
+        for filter in filters:
+            key = (
+                filter.field
+                if filter.lookup_type == "exact"
+                else f"{filter.field}__{filter.lookup_type}"
+            )
+            query[key] = filter.value
+
+    def apply_ordering(ordering: Ordering, query: dict):
+        prefix = "-" if ordering.direction == "DESC" else ""
+        query["ordering"] = prefix + ordering.field
+
+    def apply_pagination(pagination: Pagination, query: dict):
+        if pagination.limit is not None:
+            query["limit"] = pagination.limit
+        if pagination.offset is not None:
+            query["offset"] = pagination.offset
+
+    def _build_query(
+        *,
+        filters: list[Filter] = None,
+        ordering: Ordering = None,
+        pagination: Pagination = None,
+    ) -> dict[str, str]:
+        query = {}
+
+        if filters:
+            apply_filters(filters, query)
+        if ordering:
+            apply_ordering(ordering, query)
+        if pagination:
+            apply_pagination(pagination, query)
+
+        return query
+
+    return _build_query
