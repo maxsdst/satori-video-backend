@@ -10,6 +10,7 @@ from typing import BinaryIO, Literal
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files import File
+from django.urls import reverse
 from PIL import Image, UnidentifiedImageError
 from rest_framework.test import APIClient, RequestsClient
 
@@ -149,42 +150,84 @@ def pagination():
     return Pagination
 
 
+def apply_filters(filters: list[Filter], query: dict):
+    for filter in filters:
+        key = (
+            filter.field
+            if filter.lookup_type == "exact"
+            else f"{filter.field}__{filter.lookup_type}"
+        )
+        query[key] = filter.value
+
+
+def apply_ordering(ordering: Ordering, query: dict):
+    prefix = "-" if ordering.direction == "DESC" else ""
+    query["ordering"] = prefix + ordering.field
+
+
+def apply_pagination(pagination: Pagination, query: dict):
+    if pagination.limit is not None:
+        query["limit"] = pagination.limit
+    if pagination.offset is not None:
+        query["offset"] = pagination.offset
+
+
+def build_query(
+    *,
+    filters: list[Filter] = None,
+    ordering: Ordering = None,
+    pagination: Pagination = None,
+) -> dict[str, str]:
+    query = {}
+
+    if filters:
+        apply_filters(filters, query)
+    if ordering:
+        apply_ordering(ordering, query)
+    if pagination:
+        apply_pagination(pagination, query)
+
+    return query
+
+
 @pytest.fixture
-def build_query():
-    def apply_filters(filters: list[Filter], query: dict):
-        for filter in filters:
-            key = (
-                filter.field
-                if filter.lookup_type == "exact"
-                else f"{filter.field}__{filter.lookup_type}"
-            )
-            query[key] = filter.value
+def create_object(api_client):
+    def _create_object(viewname, object, **kwargs):
+        return api_client.post(reverse(viewname), object, **kwargs)
 
-    def apply_ordering(ordering: Ordering, query: dict):
-        prefix = "-" if ordering.direction == "DESC" else ""
-        query["ordering"] = prefix + ordering.field
+    return _create_object
 
-    def apply_pagination(pagination: Pagination, query: dict):
-        if pagination.limit is not None:
-            query["limit"] = pagination.limit
-        if pagination.offset is not None:
-            query["offset"] = pagination.offset
 
-    def _build_query(
-        *,
-        filters: list[Filter] = None,
-        ordering: Ordering = None,
-        pagination: Pagination = None,
-    ) -> dict[str, str]:
-        query = {}
+@pytest.fixture
+def retrieve_object(api_client):
+    def _retrieve_object(viewname, pk, **kwargs):
+        return api_client.get(reverse(viewname, kwargs={"pk": pk}), **kwargs)
 
-        if filters:
-            apply_filters(filters, query)
-        if ordering:
-            apply_ordering(ordering, query)
-        if pagination:
-            apply_pagination(pagination, query)
+    return _retrieve_object
 
-        return query
 
-    return _build_query
+@pytest.fixture
+def update_object(api_client):
+    def _update_object(viewname, pk, object, **kwargs):
+        return api_client.patch(reverse(viewname, kwargs={"pk": pk}), object, **kwargs)
+
+    return _update_object
+
+
+@pytest.fixture
+def delete_object(api_client):
+    def _delete_object(viewname, pk, **kwargs):
+        return api_client.delete(reverse(viewname, kwargs={"pk": pk}), **kwargs)
+
+    return _delete_object
+
+
+@pytest.fixture
+def list_objects(api_client):
+    def _list_objects(
+        viewname, *, filters=None, ordering=None, pagination=None, **kwargs
+    ):
+        query = build_query(filters=filters, ordering=ordering, pagination=pagination)
+        return api_client.get(reverse(viewname), query, **kwargs)
+
+    return _list_objects

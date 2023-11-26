@@ -1,50 +1,53 @@
 import pytest
 from django.conf import settings
-from django.urls import reverse
 from model_bakery import baker
 from rest_framework import status
 
 from videos.models import Video, View
 
 
-@pytest.fixture
-def create_view(api_client):
-    def do_create_view(view):
-        return api_client.post(reverse("videos:views-list"), view)
-
-    return do_create_view
+LIST_VIEWNAME = "videos:views-list"
+DETAIL_VIEWNAME = "videos:views-detail"
 
 
 @pytest.fixture
-def retrieve_view(api_client):
-    def do_retrieve_view(id):
-        return api_client.get(reverse("videos:views-detail", kwargs={"pk": id}))
+def create_view(create_object):
+    def _create_view(view):
+        return create_object(LIST_VIEWNAME, view)
 
-    return do_retrieve_view
-
-
-@pytest.fixture
-def update_view(api_client):
-    def do_update_view(id, view):
-        return api_client.patch(reverse("videos:views-detail", kwargs={"pk": id}), view)
-
-    return do_update_view
+    return _create_view
 
 
 @pytest.fixture
-def delete_view(api_client):
-    def do_delete_view(id):
-        return api_client.delete(reverse("videos:views-detail", kwargs={"pk": id}))
+def retrieve_view(retrieve_object):
+    def _retrieve_view(pk):
+        return retrieve_object(DETAIL_VIEWNAME, pk)
 
-    return do_delete_view
+    return _retrieve_view
 
 
 @pytest.fixture
-def list_views(api_client):
-    def do_list_views():
-        return api_client.get(reverse("videos:views-list"))
+def update_view(update_object):
+    def _update_view(pk, view):
+        return update_object(DETAIL_VIEWNAME, pk, view)
 
-    return do_list_views
+    return _update_view
+
+
+@pytest.fixture
+def delete_view(delete_object):
+    def _delete_view(pk):
+        return delete_object(DETAIL_VIEWNAME, pk)
+
+    return _delete_view
+
+
+@pytest.fixture
+def list_views(list_objects):
+    def _list_views():
+        return list_objects(LIST_VIEWNAME)
+
+    return _list_views
 
 
 @pytest.mark.django_db

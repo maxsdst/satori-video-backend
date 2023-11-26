@@ -4,13 +4,14 @@ from time import sleep, time
 import pytest
 from celery.contrib.testing.worker import start_worker
 from django.conf import settings
-from django.urls import reverse
 from model_bakery import baker
 from rest_framework import status
 
 from videos.models import Upload
 
 
+LIST_VIEWNAME = "videos:uploads-list"
+DETAIL_VIEWNAME = "videos:uploads-detail"
 MAX_VIDEO_DURATION_SECONDS = 90
 CURRENT_FOLDER = Path(__file__).parent
 
@@ -36,48 +37,45 @@ def too_long_video(generate_blank_video):
 
 
 @pytest.fixture
-def create_upload(api_client):
-    def do_create_upload(upload):
-        return api_client.post(
-            reverse("videos:uploads-list"), upload, format="multipart"
+def create_upload(create_object):
+    def _create_upload(upload):
+        return create_object(LIST_VIEWNAME, upload, format="multipart")
+
+    return _create_upload
+
+
+@pytest.fixture
+def retrieve_upload(retrieve_object):
+    def _retrieve_upload(pk):
+        return retrieve_object(DETAIL_VIEWNAME, pk)
+
+    return _retrieve_upload
+
+
+@pytest.fixture
+def update_upload(update_object):
+    def _update_upload(pk, upload):
+        return update_object(DETAIL_VIEWNAME, pk, upload)
+
+    return _update_upload
+
+
+@pytest.fixture
+def delete_upload(delete_object):
+    def _delete_upload(pk):
+        return delete_object(DETAIL_VIEWNAME, pk)
+
+    return _delete_upload
+
+
+@pytest.fixture
+def list_uploads(list_objects):
+    def _list_uploads(*, filters=None, ordering=None, pagination=None):
+        return list_objects(
+            LIST_VIEWNAME, filters=filters, ordering=ordering, pagination=pagination
         )
 
-    return do_create_upload
-
-
-@pytest.fixture
-def retrieve_upload(api_client):
-    def do_retrieve_upload(id):
-        return api_client.get(reverse("videos:uploads-detail", kwargs={"pk": id}))
-
-    return do_retrieve_upload
-
-
-@pytest.fixture
-def update_upload(api_client):
-    def do_update_upload(id, upload):
-        return api_client.patch(
-            reverse("videos:uploads-detail", kwargs={"pk": id}), upload
-        )
-
-    return do_update_upload
-
-
-@pytest.fixture
-def delete_upload(api_client):
-    def do_delete_upload(id):
-        return api_client.delete(reverse("videos:uploads-detail", kwargs={"pk": id}))
-
-    return do_delete_upload
-
-
-@pytest.fixture
-def list_uploads(api_client, build_query):
-    def do_list_uploads(*, filters=None, ordering=None, pagination=None):
-        query = build_query(filters=filters, ordering=ordering, pagination=pagination)
-        return api_client.get(reverse("videos:uploads-list"), query)
-
-    return do_list_uploads
+    return _list_uploads
 
 
 @pytest.mark.django_db

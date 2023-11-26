@@ -8,38 +8,39 @@ from rest_framework import status
 from profiles.models import Profile
 
 
+DETAIL_VIEWNAME = "profiles:profiles-detail"
+
+
 @pytest.fixture
 def create_profile(api_client):
-    def do_create_profile(profile):
+    def _create_profile(profile):
         return api_client.post(reverse("profiles:api-root") + "profiles/", profile)
 
-    return do_create_profile
+    return _create_profile
 
 
 @pytest.fixture
-def retrieve_profile(api_client):
-    def do_retrieve_profile(id):
-        return api_client.get(reverse("profiles:profiles-detail", kwargs={"pk": id}))
+def retrieve_profile(retrieve_object):
+    def _retrieve_profile(pk):
+        return retrieve_object(DETAIL_VIEWNAME, pk)
 
-    return do_retrieve_profile
-
-
-@pytest.fixture
-def update_profile(api_client):
-    def do_update_profile(id, profile):
-        return api_client.patch(
-            reverse("profiles:profiles-detail", kwargs={"pk": id}), profile
-        )
-
-    return do_update_profile
+    return _retrieve_profile
 
 
 @pytest.fixture
-def delete_profile(api_client):
-    def do_delete_profile(id):
-        return api_client.delete(reverse("profiles:profiles-detail", kwargs={"pk": id}))
+def update_profile(update_object):
+    def _update_profile(pk, profile):
+        return update_object(DETAIL_VIEWNAME, pk, profile)
 
-    return do_delete_profile
+    return _update_profile
+
+
+@pytest.fixture
+def delete_profile(delete_object):
+    def _delete_profile(pk):
+        return delete_object(DETAIL_VIEWNAME, pk)
+
+    return _delete_profile
 
 
 @pytest.fixture
