@@ -3,7 +3,7 @@ from django.db import transaction
 from django.utils.module_loading import import_string
 from rest_framework import serializers
 
-from .models import Upload, Video, View
+from .models import Like, Upload, Video, View
 from .signals import video_updated
 
 
@@ -74,4 +74,24 @@ class CreateViewSerializer(serializers.ModelSerializer):
             **validated_data,
             profile_id=self.context["profile_id"],
             session_id=self.context["session_id"],
+        )
+
+
+class LikeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Like
+        fields = ["id", "video", "profile", "creation_date"]
+
+    video = VideoSerializer()
+    profile = PROFILE_SERIALIZER()
+
+
+class CreateLikeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Like
+        fields = ["id", "video"]
+
+    def create(self, validated_data: dict):
+        return Like.objects.create(
+            **validated_data, profile_id=self.context["profile_id"]
         )

@@ -50,3 +50,14 @@ class View(models.Model):
     )
     session_id = models.UUIDField()
     creation_date = models.DateTimeField(auto_now_add=True)
+
+
+class Like(models.Model):
+    class Meta:
+        unique_together = ["video", "profile"]
+
+    video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name="likes")
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="video_likes"
+    )
+    creation_date = models.DateTimeField(auto_now_add=True)

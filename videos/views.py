@@ -1,23 +1,27 @@
 from datetime import timedelta
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Prefetch
 from django.db.models.aggregates import Count
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.exceptions import ParseError, PermissionDenied
 from rest_framework.filters import OrderingFilter
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
-from .models import Upload, Video, View
+from .models import Like, Upload, Video, View
 from .permissions import UserOwnsObjectOrReadOnly
 from .serializers import (
+    CreateLikeSerializer,
     CreateUploadSerializer,
     CreateViewSerializer,
+    LikeSerializer,
     UploadSerializer,
     VideoSerializer,
 )
@@ -123,3 +127,85 @@ def has_viewed_video(request: Request, video_id: int, period: timedelta) -> bool
 
     session_id = request._request.session["id"]
     return views.filter(session_id=session_id).exists()
+
+
+class LikeViewSet(ModelViewSet):
+    http_method_names = ["get", "post", "head", "options"]
+    queryset = (
+        Like.objects.select_related("profile__user")
+        .prefetch_related(Prefetch("video", VIDEO_QUERYSET))
+        .all()
+    )
+    permission_classes = [IsAuthenticatedOrReadOnly, UserOwnsObjectOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = {
+        "video": ["exact"],
+        "profile": ["exact"],
+    }
+    ordering_fields = ["creation_date"]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return CreateLikeSerializer
+        return LikeSerializer
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+    @transaction.atomic()
+    def create(self, request: Request, *args, **kwargs):
+        serializer = CreateLikeSerializer(
+            data=request.data, context={"profile_id": self.request.user.profile.id}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            like = serializer.save()
+        except IntegrityError:
+            raise ParseError(detail="You have already liked this video")
+
+        like = self.get_queryset().get(pk=like.id)
+        serializer = LikeSerializer(like, context={"request": self.request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def list(self, request, *args, **kwargs):
+        if not has_any_filter_applied(
+            request,
+            {
+                "video": self.filterset_fields["video"],
+                "profile": self.filterset_fields["profile"],
+            },
+        ):
+            raise PermissionDenied(detail="You must provide a video or profile filter")
+        return super().list(request, *args, **kwargs)
+
+    @action(detail=False, methods=["POST"], permission_classes=[IsAuthenticated])
+    def remove_like(self, request: Request):
+        profile = request.user.profile
+
+        serializer = CreateLikeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        video_id = serializer.data["video"]
+
+        Like.objects.filter(video__pk=video_id, profile=profile).delete()
+
+        return Response(status=status.HTTP_200_OK)
+
+
+def has_any_filter_applied(request: Request, filters: dict[str, list[str]]) -> bool:
+    """
+    Check if request has any of specified filters applied.
+
+    Parameters:
+        request (rest_framework.request.Request): Request object
+        filters (dict[str, list[str]]): Map of field names to supported lookup types
+    """
+
+    for field, lookups in filters.items():
+        for lookup in lookups:
+            param_name = f"{field}__{lookup}" if lookup != "exact" else field
+            if param_name in request.query_params:
+                return True
+
+    return False
