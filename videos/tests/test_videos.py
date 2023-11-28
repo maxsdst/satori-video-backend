@@ -7,7 +7,7 @@ from django.utils import timezone
 from model_bakery import baker
 from rest_framework import status
 
-from videos.models import Video, View
+from videos.models import Like, Video, View
 
 
 LIST_VIEWNAME = "videos:videos-list"
@@ -96,6 +96,7 @@ class TestRetrieveVideo:
             "thumbnail": video.thumbnail.url if video.thumbnail else None,
             "first_frame": video.first_frame.url if video.first_frame else None,
             "view_count": 0,
+            "like_count": 0,
         }
 
     def test_view_count(self, retrieve_video):
@@ -107,6 +108,16 @@ class TestRetrieveVideo:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["id"] == video.id
         assert response.data["view_count"] == 2
+
+    def test_like_count(self, retrieve_video):
+        video = baker.make(Video)
+        baker.make(Like, video=video, _quantity=2)
+
+        response = retrieve_video(video.id)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["id"] == video.id
+        assert response.data["like_count"] == 2
 
 
 @pytest.mark.django_db
@@ -296,6 +307,7 @@ class TestListVideos:
             "thumbnail": video.thumbnail.url if video.thumbnail else None,
             "first_frame": video.first_frame.url if video.first_frame else None,
             "view_count": 0,
+            "like_count": 0,
         }
 
     def test_filtering_by_profile(self, list_videos, filter):
@@ -389,6 +401,25 @@ class TestListVideos:
 
         response1 = list_videos(ordering=ordering(field="view_count", direction="ASC"))
         response2 = list_videos(ordering=ordering(field="view_count", direction="DESC"))
+
+        assert response1.data["results"][0]["id"] == video1.id
+        assert response1.data["results"][1]["id"] == video3.id
+        assert response1.data["results"][2]["id"] == video2.id
+        assert response2.data["results"][0]["id"] == video2.id
+        assert response2.data["results"][1]["id"] == video3.id
+        assert response2.data["results"][2]["id"] == video1.id
+
+    def test_ordering_by_like_count(self, list_videos, ordering):
+        video1 = baker.make(Video)
+        video2 = baker.make(Video)
+        for i in range(3):
+            baker.make(Like, video=video2)
+        video3 = baker.make(Video)
+        for i in range(2):
+            baker.make(Like, video=video3)
+
+        response1 = list_videos(ordering=ordering(field="like_count", direction="ASC"))
+        response2 = list_videos(ordering=ordering(field="like_count", direction="DESC"))
 
         assert response1.data["results"][0]["id"] == video1.id
         assert response1.data["results"][1]["id"] == video3.id

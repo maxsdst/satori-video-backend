@@ -31,6 +31,7 @@ from .tasks import handle_upload
 VIDEO_QUERYSET = (
     Video.objects.select_related("profile__user")
     .annotate(view_count=Count("views"))
+    .annotate(like_count=Count("likes"))
     .all()
 )
 
@@ -46,7 +47,7 @@ class VideoViewSet(ModelViewSet):
         "title": ["icontains"],
         "description": ["icontains"],
     }
-    ordering_fields = ["title", "upload_date", "view_count"]
+    ordering_fields = ["title", "upload_date", "view_count", "like_count"]
 
 
 class UploadViewSet(ModelViewSet):

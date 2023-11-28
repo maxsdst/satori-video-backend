@@ -149,6 +149,7 @@ class TestRetrieveLike:
                 if like.video.first_frame
                 else None,
                 "view_count": 0,
+                "like_count": 1,
             },
             "creation_date": isoformat(like.creation_date),
         }
@@ -230,6 +231,7 @@ class TestListLikes:
                 "thumbnail": video.thumbnail.url if video.thumbnail else None,
                 "first_frame": video.first_frame.url if video.first_frame else None,
                 "view_count": 0,
+                "like_count": 1,
             },
             "creation_date": isoformat(like.creation_date),
         }
