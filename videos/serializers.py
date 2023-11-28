@@ -24,6 +24,7 @@ class VideoSerializer(serializers.ModelSerializer):
             "first_frame",
             "view_count",
             "like_count",
+            "is_liked",
         ]
         read_only_fields = [
             "profile",
@@ -33,11 +34,13 @@ class VideoSerializer(serializers.ModelSerializer):
             "first_frame",
             "view_count",
             "like_count",
+            "is_liked",
         ]
 
     profile = PROFILE_SERIALIZER()
     view_count = serializers.IntegerField()
     like_count = serializers.IntegerField()
+    is_liked = serializers.BooleanField()
 
     @transaction.atomic()
     def update(self, instance, validated_data):

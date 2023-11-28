@@ -97,6 +97,7 @@ class TestRetrieveVideo:
             "first_frame": video.first_frame.url if video.first_frame else None,
             "view_count": 0,
             "like_count": 0,
+            "is_liked": False,
         }
 
     def test_view_count(self, retrieve_video):
@@ -118,6 +119,21 @@ class TestRetrieveVideo:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["id"] == video.id
         assert response.data["like_count"] == 2
+
+    def test_is_liked_field(self, authenticate, user, retrieve_video):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        video1 = baker.make(Video)
+        video2 = baker.make(Video)
+        baker.make(Like, video=video2, profile=profile)
+
+        response1 = retrieve_video(video1.id)
+        response2 = retrieve_video(video2.id)
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response1.data["is_liked"] == False
+        assert response2.status_code == status.HTTP_200_OK
+        assert response2.data["is_liked"] == True
 
 
 @pytest.mark.django_db
@@ -308,6 +324,7 @@ class TestListVideos:
             "first_frame": video.first_frame.url if video.first_frame else None,
             "view_count": 0,
             "like_count": 0,
+            "is_liked": False,
         }
 
     def test_filtering_by_profile(self, list_videos, filter):

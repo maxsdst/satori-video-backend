@@ -1,8 +1,9 @@
 from datetime import timedelta
 
 from django.db import IntegrityError, transaction
-from django.db.models import Prefetch
+from django.db.models import Case, Prefetch, Value, When
 from django.db.models.aggregates import Count
+from django.db.models.manager import BaseManager
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
@@ -28,17 +29,27 @@ from .serializers import (
 from .tasks import handle_upload
 
 
-VIDEO_QUERYSET = (
-    Video.objects.select_related("profile__user")
-    .annotate(view_count=Count("views"))
-    .annotate(like_count=Count("likes"))
-    .all()
-)
+def get_video_queryset(request: Request) -> BaseManager[Video]:
+    user = request.user
+
+    return (
+        Video.objects.select_related("profile__user")
+        .annotate(view_count=Count("views"))
+        .annotate(like_count=Count("likes"))
+        .annotate(
+            is_liked=Case(
+                When(likes__profile=user.profile, then=Value(True)),
+                default=Value(False),
+            )
+            if user.is_authenticated
+            else Value(False)
+        )
+        .all()
+    )
 
 
 class VideoViewSet(ModelViewSet):
     http_method_names = ["get", "patch", "delete", "head", "options"]
-    queryset = VIDEO_QUERYSET
     serializer_class = VideoSerializer
     permission_classes = [UserOwnsObjectOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
@@ -48,6 +59,9 @@ class VideoViewSet(ModelViewSet):
         "description": ["icontains"],
     }
     ordering_fields = ["title", "upload_date", "view_count", "like_count"]
+
+    def get_queryset(self):
+        return get_video_queryset(self.request)
 
 
 class UploadViewSet(ModelViewSet):
@@ -71,7 +85,7 @@ class UploadViewSet(ModelViewSet):
     def get_queryset(self):
         profile = self.request.user.profile
         return Upload.objects.filter(profile_id=profile.id).prefetch_related(
-            Prefetch("video", VIDEO_QUERYSET)
+            Prefetch("video", get_video_queryset(self.request))
         )
 
     @transaction.atomic()
@@ -132,11 +146,6 @@ def has_viewed_video(request: Request, video_id: int, period: timedelta) -> bool
 
 class LikeViewSet(ModelViewSet):
     http_method_names = ["get", "post", "head", "options"]
-    queryset = (
-        Like.objects.select_related("profile__user")
-        .prefetch_related(Prefetch("video", VIDEO_QUERYSET))
-        .all()
-    )
     permission_classes = [IsAuthenticatedOrReadOnly, UserOwnsObjectOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = {
@@ -152,6 +161,13 @@ class LikeViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         return {"request": self.request}
+
+    def get_queryset(self):
+        return (
+            Like.objects.select_related("profile__user")
+            .prefetch_related(Prefetch("video", get_video_queryset(self.request)))
+            .all()
+        )
 
     @transaction.atomic()
     def create(self, request: Request, *args, **kwargs):
