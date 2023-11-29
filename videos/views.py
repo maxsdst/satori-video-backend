@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
+from .filters import VideoFilter
 from .models import Like, Upload, Video, View
 from .permissions import UserOwnsObjectOrReadOnly
 from .serializers import (
@@ -53,11 +54,7 @@ class VideoViewSet(ModelViewSet):
     serializer_class = VideoSerializer
     permission_classes = [UserOwnsObjectOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = {
-        "profile": ["exact"],
-        "title": ["icontains"],
-        "description": ["icontains"],
-    }
+    filterset_class = VideoFilter
     ordering_fields = ["title", "upload_date", "view_count", "like_count"]
 
     def get_queryset(self):

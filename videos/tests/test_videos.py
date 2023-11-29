@@ -373,6 +373,30 @@ class TestListVideos:
         assert response.data["results"][0]["id"] == video1.id
         assert response.data["results"][1]["id"] == video2.id
 
+    def test_filtering_by_view_count(self, list_videos, filter):
+        video1 = baker.make(Video)
+        video2 = baker.make(Video)
+        for i in range(3):
+            baker.make(View, video=video2)
+        video3 = baker.make(Video)
+        for i in range(5):
+            baker.make(View, video=video3)
+        video4 = baker.make(Video)
+        for i in range(7):
+            baker.make(View, video=video4)
+
+        response = list_videos(
+            filters=[
+                filter(field="view_count", lookup_type="gte", value=3),
+                filter(field="view_count", lookup_type="lte", value=5),
+            ]
+        )
+
+        assert response.data["count"] == 2
+        assert len(response.data["results"]) == 2
+        assert response.data["results"][0]["id"] == video2.id
+        assert response.data["results"][1]["id"] == video3.id
+
     def test_ordering_by_title(self, list_videos, ordering):
         video1 = baker.make(Video, title="c")
         video2 = baker.make(Video, title="a")
