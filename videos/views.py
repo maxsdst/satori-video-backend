@@ -38,8 +38,8 @@ def get_video_queryset(request: Request) -> BaseManager[Video]:
 
     return (
         Video.objects.select_related("profile__user")
-        .annotate(view_count=Count("views"))
-        .annotate(like_count=Count("likes"))
+        .annotate(view_count=Count("views", distinct=True))
+        .annotate(like_count=Count("likes", distinct=True))
         .annotate(
             is_liked=Case(
                 When(likes__profile=user.profile, then=Value(True)),
