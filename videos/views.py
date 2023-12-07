@@ -16,10 +16,12 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
-from .filters import VideoFilter
-from .models import Like, Upload, Video, View
+from .filters import CommentFilter, VideoFilter
+from .models import Comment, Like, Upload, Video, View
 from .permissions import UserOwnsObjectOrReadOnly
 from .serializers import (
+    CommentSerializer,
+    CreateCommentSerializer,
     CreateLikeSerializer,
     CreateUploadSerializer,
     CreateViewSerializer,
@@ -28,6 +30,7 @@ from .serializers import (
     VideoSerializer,
 )
 from .tasks import handle_upload
+from .utils import has_any_filter_applied
 
 
 def get_video_queryset(request: Request) -> BaseManager[Video]:
@@ -183,13 +186,7 @@ class LikeViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def list(self, request, *args, **kwargs):
-        if not has_any_filter_applied(
-            request,
-            {
-                "video": self.filterset_fields["video"],
-                "profile": self.filterset_fields["profile"],
-            },
-        ):
+        if not has_any_filter_applied(request, ["video", "profile"], self):
             raise PermissionDenied(detail="You must provide a video or profile filter")
         return super().list(request, *args, **kwargs)
 
@@ -207,19 +204,38 @@ class LikeViewSet(ModelViewSet):
         return Response(status=status.HTTP_200_OK)
 
 
-def has_any_filter_applied(request: Request, filters: dict[str, list[str]]) -> bool:
-    """
-    Check if request has any of specified filters applied.
+class CommentViewSet(ModelViewSet):
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+    queryset = (
+        Comment.objects.select_related("profile__user")
+        .annotate(reply_count=Count("replies", distinct=True))
+        .all()
+    )
+    permission_classes = [IsAuthenticatedOrReadOnly, UserOwnsObjectOrReadOnly]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = CommentFilter
+    ordering_fields = ["creation_date"]
 
-    Parameters:
-        request (rest_framework.request.Request): Request object
-        filters (dict[str, list[str]]): Map of field names to supported lookup types
-    """
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return CreateCommentSerializer
+        return CommentSerializer
 
-    for field, lookups in filters.items():
-        for lookup in lookups:
-            param_name = f"{field}__{lookup}" if lookup != "exact" else field
-            if param_name in request.query_params:
-                return True
+    def get_serializer_context(self):
+        return {"request": self.request}
 
-    return False
+    def create(self, request: Request, *args, **kwargs):
+        serializer = CreateCommentSerializer(
+            data=request.data, context={"profile_id": self.request.user.profile.id}
+        )
+        serializer.is_valid(raise_exception=True)
+        comment = serializer.save()
+        comment = self.get_queryset().get(pk=comment.id)
+        serializer = CommentSerializer(comment, context={"request": self.request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def list(self, request, *args, **kwargs):
+        if not has_any_filter_applied(request, ["video", "parent"], self):
+            raise PermissionDenied(detail="You must provide a video or parent filter")
+
+        return super().list(request, *args, **kwargs)

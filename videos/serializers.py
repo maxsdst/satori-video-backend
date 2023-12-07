@@ -3,7 +3,7 @@ from django.db import transaction
 from django.utils.module_loading import import_string
 from rest_framework import serializers
 
-from .models import Like, Upload, Video, View
+from .models import Comment, Like, Upload, Video, View
 from .signals import video_updated
 
 
@@ -99,5 +99,54 @@ class CreateLikeSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: dict):
         return Like.objects.create(
+            **validated_data, profile_id=self.context["profile_id"]
+        )
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = [
+            "id",
+            "video",
+            "profile",
+            "parent",
+            "text",
+            "creation_date",
+            "reply_count",
+        ]
+        read_only_fields = [
+            "video",
+            "profile",
+            "parent",
+            "creation_date",
+            "reply_count",
+        ]
+
+    profile = PROFILE_SERIALIZER()
+    reply_count = serializers.IntegerField()
+
+
+class CreateCommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = ["id", "video", "parent", "text"]
+
+    def validate(self, attrs):
+        video = attrs["video"]
+        parent = attrs["parent"]
+
+        if parent:
+            if parent.video.id != video.id:
+                raise serializers.ValidationError(
+                    "Parent comment must belong to the same video"
+                )
+            if parent.parent is not None:
+                raise serializers.ValidationError("Comments are limited to 2 levels")
+
+        return attrs
+
+    def create(self, validated_data):
+        return Comment.objects.create(
             **validated_data, profile_id=self.context["profile_id"]
         )

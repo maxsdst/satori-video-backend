@@ -61,3 +61,15 @@ class Like(models.Model):
         settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="video_likes"
     )
     creation_date = models.DateTimeField(auto_now_add=True)
+
+
+class Comment(models.Model):
+    video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name="comments")
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="comments"
+    )
+    parent = models.ForeignKey(
+        "self", null=True, on_delete=models.CASCADE, related_name="replies"
+    )
+    text = models.TextField(max_length=2000)
+    creation_date = models.DateTimeField(auto_now_add=True)
