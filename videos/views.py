@@ -48,6 +48,7 @@ def get_video_queryset(request: Request) -> BaseManager[Video]:
             if user.is_authenticated
             else Value(False)
         )
+        .annotate(comment_count=Count("comments", distinct=True))
         .all()
     )
 

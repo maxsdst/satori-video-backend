@@ -151,6 +151,7 @@ class TestRetrieveLike:
                 "view_count": 0,
                 "like_count": 1,
                 "is_liked": False,
+                "comment_count": 0,
             },
             "creation_date": isoformat(like.creation_date),
         }
@@ -234,6 +235,7 @@ class TestListLikes:
                 "view_count": 0,
                 "like_count": 1,
                 "is_liked": False,
+                "comment_count": 0,
             },
             "creation_date": isoformat(like.creation_date),
         }

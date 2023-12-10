@@ -7,7 +7,7 @@ from django.utils import timezone
 from model_bakery import baker
 from rest_framework import status
 
-from videos.models import Like, Video, View
+from videos.models import Comment, Like, Video, View
 
 
 LIST_VIEWNAME = "videos:videos-list"
@@ -98,6 +98,7 @@ class TestRetrieveVideo:
             "view_count": 0,
             "like_count": 0,
             "is_liked": False,
+            "comment_count": 0,
         }
 
     def test_view_count(self, retrieve_video):
@@ -134,6 +135,16 @@ class TestRetrieveVideo:
         assert response1.data["is_liked"] == False
         assert response2.status_code == status.HTTP_200_OK
         assert response2.data["is_liked"] == True
+
+    def test_comment_count(self, retrieve_video):
+        video = baker.make(Video)
+        baker.make(Comment, video=video, _quantity=2)
+
+        response = retrieve_video(video.id)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["id"] == video.id
+        assert response.data["comment_count"] == 2
 
 
 @pytest.mark.django_db
@@ -325,6 +336,7 @@ class TestListVideos:
             "view_count": 0,
             "like_count": 0,
             "is_liked": False,
+            "comment_count": 0,
         }
 
     def test_filtering_by_profile(self, list_videos, filter):
