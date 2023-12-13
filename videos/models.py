@@ -73,3 +73,13 @@ class Comment(models.Model):
     )
     text = models.TextField(max_length=2000)
     creation_date = models.DateTimeField(auto_now_add=True)
+
+
+class CommentLike(models.Model):
+    class Meta:
+        unique_together = ["comment", "profile"]
+
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name="likes")
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="comment_likes"
+    )

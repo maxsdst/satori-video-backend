@@ -17,10 +17,12 @@ from rest_framework.viewsets import ModelViewSet
 
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
 from .filters import CommentFilter, VideoFilter
-from .models import Comment, Like, Upload, Video, View
+from .models import Comment, CommentLike, Like, Upload, Video, View
 from .permissions import UserOwnsObjectOrReadOnly
 from .serializers import (
+    CommentLikeSerializer,
     CommentSerializer,
+    CreateCommentLikeSerializer,
     CreateCommentSerializer,
     CreateLikeSerializer,
     CreateUploadSerializer,
@@ -240,3 +242,39 @@ class CommentViewSet(ModelViewSet):
             raise PermissionDenied(detail="You must provide a video or parent filter")
 
         return super().list(request, *args, **kwargs)
+
+
+class CommentLikeViewSet(ModelViewSet):
+    http_method_names = ["post", "options"]
+    serializer_class = CommentLikeSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+    def create(self, request: Request, *args, **kwargs):
+        serializer = CreateCommentLikeSerializer(
+            data=request.data, context={"profile_id": request.user.profile.id}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            like = serializer.save()
+        except IntegrityError:
+            raise ParseError(detail="You have already liked this comment")
+
+        serializer = CommentLikeSerializer(like, context={"request": self.request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["POST"], permission_classes=[IsAuthenticated])
+    def remove_like(self, request: Request):
+        profile = request.user.profile
+
+        serializer = CreateCommentLikeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        comment_id = serializer.data["comment"]
+
+        CommentLike.objects.filter(comment__pk=comment_id, profile=profile).delete()
+
+        return Response(status=status.HTTP_200_OK)

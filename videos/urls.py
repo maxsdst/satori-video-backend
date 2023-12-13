@@ -1,6 +1,13 @@
 from rest_framework.routers import DefaultRouter
 
-from .views import CommentViewSet, LikeViewSet, UploadViewSet, VideoViewSet, ViewViewSet
+from .views import (
+    CommentLikeViewSet,
+    CommentViewSet,
+    LikeViewSet,
+    UploadViewSet,
+    VideoViewSet,
+    ViewViewSet,
+)
 
 app_name = "videos"
 
@@ -10,5 +17,6 @@ router.register("uploads", UploadViewSet, basename="uploads")
 router.register("views", ViewViewSet, basename="views")
 router.register("likes", LikeViewSet, basename="likes")
 router.register("comments", CommentViewSet, basename="comments")
+router.register("comment_likes", CommentLikeViewSet, basename="comment_likes")
 
 urlpatterns = router.urls
