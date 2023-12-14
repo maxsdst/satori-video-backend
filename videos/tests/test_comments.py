@@ -156,6 +156,7 @@ class TestRetrieveComment:
             "text": comment.text,
             "creation_date": isoformat(comment.creation_date),
             "reply_count": 0,
+            "like_count": 0,
             "is_liked": False,
         }
 
@@ -183,6 +184,16 @@ class TestRetrieveComment:
         assert response1.data["is_liked"] == False
         assert response2.status_code == status.HTTP_200_OK
         assert response2.data["is_liked"] == True
+
+    def test_like_count(self, retrieve_comment):
+        comment = baker.make(Comment)
+        baker.make(CommentLike, comment=comment, _quantity=2)
+
+        response = retrieve_comment(comment.id)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["id"] == comment.id
+        assert response.data["like_count"] == 2
 
 
 @pytest.mark.django_db
@@ -362,6 +373,7 @@ class TestListComments:
             "text": comment.text,
             "creation_date": isoformat(comment.creation_date),
             "reply_count": 0,
+            "like_count": 0,
             "is_liked": False,
         }
 
@@ -395,6 +407,7 @@ class TestListComments:
             "text": comment.text,
             "creation_date": isoformat(comment.creation_date),
             "reply_count": 0,
+            "like_count": 0,
             "is_liked": False,
         }
 

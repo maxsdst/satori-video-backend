@@ -228,6 +228,7 @@ class CommentViewSet(ModelViewSet):
         return (
             Comment.objects.select_related("profile__user")
             .annotate(reply_count=Count("replies", distinct=True))
+            .annotate(like_count=Count("likes", distinct=True))
             .annotate(
                 is_liked=Case(
                     When(likes__profile=user.profile, then=Value(True)),
