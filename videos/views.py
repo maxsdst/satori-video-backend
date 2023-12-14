@@ -209,11 +209,6 @@ class LikeViewSet(ModelViewSet):
 
 class CommentViewSet(ModelViewSet):
     http_method_names = ["get", "post", "patch", "delete", "head", "options"]
-    queryset = (
-        Comment.objects.select_related("profile__user")
-        .annotate(reply_count=Count("replies", distinct=True))
-        .all()
-    )
     permission_classes = [IsAuthenticatedOrReadOnly, UserOwnsObjectOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = CommentFilter
@@ -226,6 +221,23 @@ class CommentViewSet(ModelViewSet):
 
     def get_serializer_context(self):
         return {"request": self.request}
+
+    def get_queryset(self):
+        user = self.request.user
+
+        return (
+            Comment.objects.select_related("profile__user")
+            .annotate(reply_count=Count("replies", distinct=True))
+            .annotate(
+                is_liked=Case(
+                    When(likes__profile=user.profile, then=Value(True)),
+                    default=Value(False),
+                )
+                if user.is_authenticated
+                else Value(False)
+            )
+            .all()
+        )
 
     def create(self, request: Request, *args, **kwargs):
         serializer = CreateCommentSerializer(

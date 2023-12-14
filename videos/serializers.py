@@ -117,6 +117,7 @@ class CommentSerializer(serializers.ModelSerializer):
             "text",
             "creation_date",
             "reply_count",
+            "is_liked",
         ]
         read_only_fields = [
             "video",
@@ -124,10 +125,12 @@ class CommentSerializer(serializers.ModelSerializer):
             "parent",
             "creation_date",
             "reply_count",
+            "is_liked",
         ]
 
     profile = PROFILE_SERIALIZER()
     reply_count = serializers.IntegerField()
+    is_liked = serializers.BooleanField()
 
 
 class CreateCommentSerializer(serializers.ModelSerializer):

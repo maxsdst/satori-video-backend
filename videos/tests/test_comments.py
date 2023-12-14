@@ -7,7 +7,7 @@ from model_bakery import baker
 from django.utils import timezone
 from rest_framework import status
 
-from videos.models import Comment, Video
+from videos.models import Comment, CommentLike, Video
 
 
 LIST_VIEWNAME = "videos:comments-list"
@@ -156,6 +156,7 @@ class TestRetrieveComment:
             "text": comment.text,
             "creation_date": isoformat(comment.creation_date),
             "reply_count": 0,
+            "is_liked": False,
         }
 
     def test_reply_count(self, retrieve_comment):
@@ -167,6 +168,21 @@ class TestRetrieveComment:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["id"] == comment.id
         assert response.data["reply_count"] == 2
+
+    def test_is_liked_field(self, authenticate, user, retrieve_comment):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        comment1 = baker.make(Comment)
+        comment2 = baker.make(Comment)
+        baker.make(CommentLike, comment=comment2, profile=profile)
+
+        response1 = retrieve_comment(comment1.id)
+        response2 = retrieve_comment(comment2.id)
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response1.data["is_liked"] == False
+        assert response2.status_code == status.HTTP_200_OK
+        assert response2.data["is_liked"] == True
 
 
 @pytest.mark.django_db
@@ -346,6 +362,7 @@ class TestListComments:
             "text": comment.text,
             "creation_date": isoformat(comment.creation_date),
             "reply_count": 0,
+            "is_liked": False,
         }
 
     def test_if_parent_filter_applied_returns_200(
@@ -378,6 +395,7 @@ class TestListComments:
             "text": comment.text,
             "creation_date": isoformat(comment.creation_date),
             "reply_count": 0,
+            "is_liked": False,
         }
 
     def test_if_video_filter_applied_doesnt_include_replies(
