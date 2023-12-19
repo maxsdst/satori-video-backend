@@ -427,6 +427,25 @@ class TestListComments:
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["id"] == comment.id
 
+    def test_if_video_and_parent_filters_applied_returns_replies(
+        self, list_comments, filter
+    ):
+        video = baker.make(Video)
+        parent = baker.make(Comment, video=video)
+        reply = baker.make(Comment, video=video, parent=parent)
+
+        response = list_comments(
+            filters=[
+                filter(field="video", lookup_type="exact", value=video.id),
+                filter(field="parent", lookup_type="exact", value=parent.id),
+            ]
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["count"] == 1
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == reply.id
+
     def test_filtering_by_video(self, list_comments, filter):
         video1 = baker.make(Video)
         video2 = baker.make(Video)

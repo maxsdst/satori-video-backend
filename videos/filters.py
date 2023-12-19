@@ -29,4 +29,7 @@ class CommentFilter(FilterSet):
     video = ModelChoiceFilter(queryset=Video.objects.all(), method="filter_video")
 
     def filter_video(self, queryset, name, value):
+        if "parent" in self.data:
+            return queryset.filter(**{name: value})
+
         return queryset.filter(parent__isnull=True, **{name: value})
