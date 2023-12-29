@@ -114,6 +114,8 @@ class CommentSerializer(serializers.ModelSerializer):
             "video",
             "profile",
             "parent",
+            "mentioned_profile",
+            "mentioned_profile_username",
             "text",
             "creation_date",
             "reply_count",
@@ -124,6 +126,8 @@ class CommentSerializer(serializers.ModelSerializer):
             "video",
             "profile",
             "parent",
+            "mentioned_profile",
+            "mentioned_profile_username",
             "creation_date",
             "reply_count",
             "like_count",
@@ -139,11 +143,12 @@ class CommentSerializer(serializers.ModelSerializer):
 class CreateCommentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comment
-        fields = ["id", "video", "parent", "text"]
+        fields = ["id", "video", "parent", "mentioned_profile", "text"]
 
     def validate(self, attrs):
         video = attrs["video"]
         parent = attrs["parent"]
+        mentioned_profile = attrs["mentioned_profile"]
 
         if parent:
             if parent.video.id != video.id:
@@ -153,11 +158,22 @@ class CreateCommentSerializer(serializers.ModelSerializer):
             if parent.parent is not None:
                 raise serializers.ValidationError("Comments are limited to 2 levels")
 
+        if mentioned_profile and not parent:
+            raise serializers.ValidationError(
+                "Mentioning profile is only allowed in replies"
+            )
+
         return attrs
 
     def create(self, validated_data):
+        mentioned_profile = validated_data["mentioned_profile"]
+
         return Comment.objects.create(
-            **validated_data, profile_id=self.context["profile_id"]
+            **validated_data,
+            profile_id=self.context["profile_id"],
+            mentioned_profile_username=mentioned_profile.user.username
+            if mentioned_profile
+            else None,
         )
 
 

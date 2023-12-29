@@ -71,6 +71,13 @@ class Comment(models.Model):
     parent = models.ForeignKey(
         "self", null=True, on_delete=models.CASCADE, related_name="replies"
     )
+    mentioned_profile = models.ForeignKey(
+        settings.PROFILE_MODEL,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="mentioned_in_comments",
+    )
+    mentioned_profile_username = models.CharField(max_length=250, null=True)
     text = models.TextField(max_length=2000)
     creation_date = models.DateTimeField(auto_now_add=True)
 

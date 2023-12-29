@@ -67,19 +67,24 @@ class TestCreateComment:
         authenticate(user=user)
         baker.make(settings.PROFILE_MODEL, user=user)
 
-        response = create_comment({"video": 1, "parent": 1, "text": ""})
+        response = create_comment(
+            {"video": 1, "parent": 1, "text": "", "mentioned_profile": 123}
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data["video"] is not None
         assert response.data["parent"] is not None
         assert response.data["text"] is not None
+        assert response.data["mentioned_profile"] is not None
 
     def test_if_data_is_valid_returns_201(self, authenticate, user, create_comment):
         authenticate(user=user)
         baker.make(settings.PROFILE_MODEL, user=user)
         video = baker.make(Video)
 
-        response = create_comment({"video": video.id, "parent": None, "text": "a"})
+        response = create_comment(
+            {"video": video.id, "parent": None, "text": "a", "mentioned_profile": None}
+        )
 
         assert response.status_code == status.HTTP_201_CREATED
         assert response.data["id"] > 0
@@ -91,7 +96,12 @@ class TestCreateComment:
         comment = baker.make(Comment, video=video)
 
         response = create_comment(
-            {"video": video.id, "parent": comment.id, "text": "a"}
+            {
+                "video": video.id,
+                "parent": comment.id,
+                "text": "a",
+                "mentioned_profile": None,
+            }
         )
 
         assert response.status_code == status.HTTP_201_CREATED
@@ -107,7 +117,12 @@ class TestCreateComment:
         comment = baker.make(Comment, video=video1)
 
         response = create_comment(
-            {"video": video2.id, "parent": comment.id, "text": "a"}
+            {
+                "video": video2.id,
+                "parent": comment.id,
+                "text": "a",
+                "mentioned_profile": None,
+            }
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -120,7 +135,59 @@ class TestCreateComment:
         comment = baker.make(Comment, video=video)
         reply = baker.make(Comment, video=video, parent=comment)
 
-        response = create_comment({"video": video.id, "parent": reply.id, "text": "a"})
+        response = create_comment(
+            {
+                "video": video.id,
+                "parent": reply.id,
+                "text": "a",
+                "mentioned_profile": None,
+            }
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["detail"] is not None
+
+    def test_derives_mentioned_profile_username_from_mentioned_profile(
+        self, authenticate, user, other_user, create_comment
+    ):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        other_profile = baker.make(settings.PROFILE_MODEL, user=other_user)
+        video = baker.make(Video)
+        parent = baker.make(Comment, video=video)
+
+        response = create_comment(
+            {
+                "video": video.id,
+                "parent": parent.id,
+                "text": "a",
+                "mentioned_profile": other_profile.id,
+            }
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.data["id"] > 0
+        assert response.data["mentioned_profile"] == other_profile.id
+        assert (
+            response.data["mentioned_profile_username"] == other_profile.user.username
+        )
+
+    def test_cannot_mention_profile_in_top_level_comment(
+        self, authenticate, user, other_user, create_comment
+    ):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        other_profile = baker.make(settings.PROFILE_MODEL, user=other_user)
+        video = baker.make(Video)
+
+        response = create_comment(
+            {
+                "video": video.id,
+                "parent": None,
+                "text": "a",
+                "mentioned_profile": other_profile.id,
+            }
+        )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert response.data["detail"] is not None
@@ -153,6 +220,8 @@ class TestRetrieveComment:
                 "avatar": comment.profile.avatar,
             },
             "parent": comment.parent.id if comment.parent else comment.parent,
+            "mentioned_profile": None,
+            "mentioned_profile_username": None,
             "text": comment.text,
             "creation_date": isoformat(comment.creation_date),
             "reply_count": 0,
@@ -370,6 +439,8 @@ class TestListComments:
                 "avatar": comment.profile.avatar,
             },
             "parent": comment.parent.id if comment.parent else comment.parent,
+            "mentioned_profile": None,
+            "mentioned_profile_username": None,
             "text": comment.text,
             "creation_date": isoformat(comment.creation_date),
             "reply_count": 0,
@@ -404,6 +475,8 @@ class TestListComments:
                 "avatar": comment.profile.avatar,
             },
             "parent": comment.parent.id if comment.parent else comment.parent,
+            "mentioned_profile": None,
+            "mentioned_profile_username": None,
             "text": comment.text,
             "creation_date": isoformat(comment.creation_date),
             "reply_count": 0,
