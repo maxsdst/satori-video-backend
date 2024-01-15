@@ -3,11 +3,14 @@ from time import sleep
 
 import pytest
 from django.conf import settings
-from model_bakery import baker
 from django.utils import timezone
+from model_bakery import baker
 from rest_framework import status
 
+from videos.constants import CommentPopularityWeight
 from videos.models import Comment, CommentLike, Video
+from videos.tasks import update_comment_popularity_scores
+from videos.utils import update_comment_popularity_score
 
 
 LIST_VIEWNAME = "videos:comments-list"
@@ -227,6 +230,7 @@ class TestRetrieveComment:
             "reply_count": 0,
             "like_count": 0,
             "is_liked": False,
+            "popularity_score": 0,
         }
 
     def test_reply_count(self, retrieve_comment):
@@ -446,6 +450,7 @@ class TestListComments:
             "reply_count": 0,
             "like_count": 0,
             "is_liked": False,
+            "popularity_score": 0,
         }
 
     def test_if_parent_filter_applied_returns_200(
@@ -482,6 +487,7 @@ class TestListComments:
             "reply_count": 0,
             "like_count": 0,
             "is_liked": False,
+            "popularity_score": 0,
         }
 
     def test_if_video_filter_applied_doesnt_include_replies(
@@ -576,6 +582,28 @@ class TestListComments:
         assert response2.data["results"][1]["id"] == comment2.id
         assert response2.data["results"][2]["id"] == comment1.id
 
+    def test_ordering_by_popularity_score(self, list_comments, filter, ordering):
+        video = baker.make(Video)
+        comment1 = baker.make(Comment, video=video, popularity_score=20)
+        comment2 = baker.make(Comment, video=video, popularity_score=0)
+        comment3 = baker.make(Comment, video=video, popularity_score=10)
+
+        response1 = list_comments(
+            filters=[filter(field="video", lookup_type="exact", value=video.id)],
+            ordering=ordering(field="popularity_score", direction="ASC"),
+        )
+        response2 = list_comments(
+            filters=[filter(field="video", lookup_type="exact", value=video.id)],
+            ordering=ordering(field="popularity_score", direction="DESC"),
+        )
+
+        assert response1.data["results"][0]["id"] == comment2.id
+        assert response1.data["results"][1]["id"] == comment3.id
+        assert response1.data["results"][2]["id"] == comment1.id
+        assert response2.data["results"][0]["id"] == comment1.id
+        assert response2.data["results"][1]["id"] == comment3.id
+        assert response2.data["results"][2]["id"] == comment2.id
+
     def test_limit_offset_pagination(self, list_comments, filter, pagination):
         video = baker.make(Video)
         comments = [baker.make(Comment, video=video) for i in range(3)]
@@ -600,3 +628,92 @@ class TestListComments:
         assert response2.data["next"] is None
         assert len(response2.data["results"]) == 1
         assert response2.data["results"][0]["id"] == comments[2].id
+
+
+@pytest.mark.django_db
+class TestPopularityScore:
+    def test_score_is_initially_0(self):
+        comment = baker.make(Comment)
+
+        assert comment.popularity_score == 0
+
+    def test_likes_increase_score(self):
+        comment = baker.make(Comment)
+        like_count = 3
+
+        baker.make(CommentLike, comment=comment, _quantity=like_count)
+        comment.refresh_from_db()
+
+        assert comment.popularity_score == like_count * CommentPopularityWeight.LIKE
+
+    def test_replies_increase_score(self):
+        comment = baker.make(Comment)
+        reply_count = 3
+
+        baker.make(Comment, parent=comment, _quantity=reply_count)
+        comment.refresh_from_db()
+
+        assert comment.popularity_score == reply_count * CommentPopularityWeight.REPLY
+
+    def test_deleting_like_decreases_score(self):
+        comment = baker.make(Comment)
+        baker.make(CommentLike, comment=comment, _quantity=2)
+        like = baker.make(CommentLike, comment=comment)
+        comment.refresh_from_db()
+        initial_score = comment.popularity_score
+
+        like.delete()
+        comment.refresh_from_db()
+
+        assert initial_score - comment.popularity_score == CommentPopularityWeight.LIKE
+
+    def test_deleting_reply_decreases_score(self):
+        comment = baker.make(Comment)
+        baker.make(Comment, parent=comment, _quantity=2)
+        reply = baker.make(Comment, parent=comment)
+        comment.refresh_from_db()
+        initial_score = comment.popularity_score
+
+        reply.delete()
+        comment.refresh_from_db()
+
+        assert initial_score - comment.popularity_score == CommentPopularityWeight.REPLY
+
+    def test_time_decay(self):
+        comment1 = baker.make(Comment)
+        comment2 = baker.make(Comment)
+        comment3 = baker.make(Comment)
+        like_count = 30
+        baker.make(CommentLike, comment=comment1, _quantity=like_count)
+        baker.make(CommentLike, comment=comment2, _quantity=like_count)
+        baker.make(CommentLike, comment=comment3, _quantity=like_count)
+
+        comment2.creation_date = timezone.now() - timedelta(days=100)
+        comment3.creation_date = timezone.now() - timedelta(days=200)
+        update_comment_popularity_score(comment2, save=False)
+        update_comment_popularity_score(comment3, save=False)
+
+        assert (
+            comment1.popularity_score
+            > comment2.popularity_score
+            > comment3.popularity_score
+        )
+
+    def test_periodic_task_updates_score(self):
+        comment1 = baker.make(Comment)
+        comment2 = baker.make(Comment)
+        baker.make(CommentLike, comment=comment1, _bulk_create=True, _quantity=2)
+        baker.make(CommentLike, comment=comment2, _bulk_create=True, _quantity=2)
+        comment1.refresh_from_db()
+        comment2.refresh_from_db()
+        comment1_initial_score = comment1.popularity_score
+        comment2_initial_score = comment2.popularity_score
+
+        update_comment_popularity_scores.apply()
+        comment1.refresh_from_db()
+        comment2.refresh_from_db()
+
+        assert comment1_initial_score == 0
+        assert comment1.popularity_score > 0
+        assert comment2_initial_score == 0
+        assert comment2.popularity_score > 0

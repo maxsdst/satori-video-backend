@@ -1,9 +1,18 @@
+import math
+from datetime import datetime
 from pathlib import Path
 
 from django.conf import settings
 from django.core.files.base import File
+from django.utils import timezone
 from rest_framework.request import Request
 from rest_framework.viewsets import ModelViewSet
+
+from .constants import (
+    COMMENT_POPULARITY_TIME_DECAY_RATE,
+    SECONDS_IN_DAY,
+    CommentPopularityWeight,
+)
 
 
 def get_media_path(target: Path) -> str:
@@ -71,3 +80,33 @@ def get_filter_query_params_from_filterset_fields(
                 params.append(param)
 
     return params
+
+
+def get_days_since_date(date: datetime) -> float:
+    time_since_created = timezone.now() - date
+    return time_since_created.total_seconds() / SECONDS_IN_DAY
+
+
+def exponential_decay(days_since_event: float, decay_rate: float) -> float:
+    return math.exp(-decay_rate * days_since_event)
+
+
+def calculate_comment_popularity_score(comment) -> int:
+    score = (
+        comment.likes.count() * CommentPopularityWeight.LIKE
+        + comment.replies.count() * CommentPopularityWeight.REPLY
+    )
+
+    decay_factor = exponential_decay(
+        get_days_since_date(comment.creation_date),
+        COMMENT_POPULARITY_TIME_DECAY_RATE,
+    )
+
+    return round(score * decay_factor)
+
+
+def update_comment_popularity_score(comment, save: bool = True) -> None:
+    comment.popularity_score = calculate_comment_popularity_score(comment)
+
+    if save:
+        comment.save()

@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 
 from .validators import (
     validate_video_duration,
@@ -80,6 +80,11 @@ class Comment(models.Model):
     mentioned_profile_username = models.CharField(max_length=250, null=True)
     text = models.TextField(max_length=2000)
     creation_date = models.DateTimeField(auto_now_add=True)
+    popularity_score = models.IntegerField(default=0)
+
+    @transaction.atomic()
+    def save(self, *args, **kwargs):
+        return super().save(*args, **kwargs)
 
 
 class CommentLike(models.Model):
@@ -90,3 +95,7 @@ class CommentLike(models.Model):
     profile = models.ForeignKey(
         settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="comment_likes"
     )
+
+    @transaction.atomic()
+    def save(self, *args, **kwargs):
+        return super().save(*args, **kwargs)

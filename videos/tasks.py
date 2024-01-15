@@ -6,8 +6,8 @@ from django.db import transaction
 from django.db.models.fields.files import FieldFile
 
 from .constants import TEMP_FOLDER
-from .models import Upload, Video
-from .utils import get_media_path
+from .models import Comment, Upload, Video
+from .utils import get_media_path, update_comment_popularity_score
 from .video_processing import (
     create_thumbnail,
     create_vertical_video,
@@ -61,3 +61,13 @@ def handle_upload(upload_id: int, profile_id: int) -> None:
     upload.video = video
     upload.is_done = True
     upload.save()
+
+
+@shared_task()
+def update_comment_popularity_scores() -> None:
+    comments = Comment.objects.all()
+
+    for comment in comments:
+        update_comment_popularity_score(comment, save=False)
+
+    Comment.objects.bulk_update(comments, ["popularity_score"])

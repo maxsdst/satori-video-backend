@@ -121,6 +121,7 @@ class CommentSerializer(serializers.ModelSerializer):
             "reply_count",
             "like_count",
             "is_liked",
+            "popularity_score",
         ]
         read_only_fields = [
             "video",
@@ -132,6 +133,7 @@ class CommentSerializer(serializers.ModelSerializer):
             "reply_count",
             "like_count",
             "is_liked",
+            "popularity_score"
         ]
 
     profile = PROFILE_SERIALIZER()

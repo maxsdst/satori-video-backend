@@ -165,6 +165,12 @@ DJOSER = {
 AUTH_USER_MODEL = "core.User"
 
 CELERY_BROKER_URL = "redis://localhost:6379/1"
+CELERY_BEAT_SCHEDULE = {
+    "update_comment_popularity_scores": {
+        "task": "videos.tasks.update_comment_popularity_scores",
+        "schedule": 60 * 60,
+    }
+}
 
 INTERNAL_IPS = [
     "127.0.0.1",

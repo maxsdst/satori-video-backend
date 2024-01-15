@@ -212,7 +212,7 @@ class CommentViewSet(ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly, UserOwnsObjectOrReadOnly]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = CommentFilter
-    ordering_fields = ["creation_date"]
+    ordering_fields = ["creation_date", "popularity_score"]
 
     def get_serializer_class(self):
         if self.request.method == "POST":
