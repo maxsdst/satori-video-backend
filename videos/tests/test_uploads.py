@@ -375,8 +375,10 @@ class TestListUpload:
         profile = baker.make(settings.PROFILE_MODEL, user=user)
         uploads = [baker.make(Upload, profile=profile) for i in range(3)]
 
-        response1 = list_uploads(pagination=pagination(limit=2))
-        response2 = list_uploads(pagination=pagination(limit=2, offset=2))
+        response1 = list_uploads(pagination=pagination(type="limit_offset", limit=2))
+        response2 = list_uploads(
+            pagination=pagination(type="limit_offset", limit=2, offset=2)
+        )
 
         assert response1.data["count"] == 3
         assert response1.data["previous"] is None

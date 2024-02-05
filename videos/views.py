@@ -18,6 +18,7 @@ from rest_framework.viewsets import ModelViewSet
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
 from .filters import CommentFilter, VideoFilter
 from .models import Comment, CommentLike, Like, Upload, Video, View
+from .pagination import CommentPagination
 from .permissions import UserOwnsObjectOrReadOnly
 from .serializers import (
     CommentLikeSerializer,
@@ -213,6 +214,7 @@ class CommentViewSet(ModelViewSet):
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = CommentFilter
     ordering_fields = ["creation_date", "popularity_score"]
+    pagination_class = CommentPagination
 
     def get_serializer_class(self):
         if self.request.method == "POST":

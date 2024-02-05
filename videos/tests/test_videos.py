@@ -484,8 +484,10 @@ class TestListVideos:
     def test_limit_offset_pagination(self, list_videos, pagination):
         videos = [baker.make(Video) for i in range(3)]
 
-        response1 = list_videos(pagination=pagination(limit=2))
-        response2 = list_videos(pagination=pagination(limit=2, offset=2))
+        response1 = list_videos(pagination=pagination(type="limit_offset", limit=2))
+        response2 = list_videos(
+            pagination=pagination(type="limit_offset", limit=2, offset=2)
+        )
 
         assert response1.data["count"] == 3
         assert response1.data["previous"] is None

@@ -428,7 +428,6 @@ class TestListComments:
         )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["count"] == 1
         assert response.data["results"][0] == {
             "id": comment.id,
             "video": comment.video.id,
@@ -465,7 +464,6 @@ class TestListComments:
         )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["count"] == 1
         assert response.data["results"][0] == {
             "id": comment.id,
             "video": comment.video.id,
@@ -502,7 +500,6 @@ class TestListComments:
         )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["count"] == 1
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["id"] == comment.id
 
@@ -521,7 +518,6 @@ class TestListComments:
         )
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.data["count"] == 1
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["id"] == reply.id
 
@@ -536,7 +532,6 @@ class TestListComments:
             filters=[filter(field="video", lookup_type="exact", value=video1.id)]
         )
 
-        assert response.data["count"] == 2
         assert len(response.data["results"]) == 2
         assert response.data["results"][0]["id"] == comment1.id
         assert response.data["results"][1]["id"] == comment2.id
@@ -553,7 +548,6 @@ class TestListComments:
             filters=[filter(field="parent", lookup_type="exact", value=parent1.id)]
         )
 
-        assert response.data["count"] == 2
         assert len(response.data["results"]) == 2
         assert response.data["results"][0]["id"] == comment1.id
         assert response.data["results"][1]["id"] == comment2.id
@@ -604,30 +598,64 @@ class TestListComments:
         assert response2.data["results"][1]["id"] == comment3.id
         assert response2.data["results"][2]["id"] == comment2.id
 
-    def test_limit_offset_pagination(self, list_comments, filter, pagination):
+    def test_snapshot_pagination(self, list_comments, filter, pagination, api_client):
         video = baker.make(Video)
         comments = [baker.make(Comment, video=video) for i in range(3)]
 
         response1 = list_comments(
             filters=[filter(field="video", lookup_type="exact", value=video.id)],
-            pagination=pagination(limit=2),
+            pagination=pagination(type="snapshot", page_size=2),
         )
-        response2 = list_comments(
-            filters=[filter(field="video", lookup_type="exact", value=video.id)],
-            pagination=pagination(limit=2, offset=2),
-        )
+        response2 = api_client.get(response1.data["next"])
 
-        assert response1.data["count"] == 3
         assert response1.data["previous"] is None
         assert response1.data["next"] is not None
         assert len(response1.data["results"]) == 2
         assert response1.data["results"][0]["id"] == comments[0].id
         assert response1.data["results"][1]["id"] == comments[1].id
-        assert response2.data["count"] == 3
         assert response2.data["previous"] is not None
         assert response2.data["next"] is None
         assert len(response2.data["results"]) == 1
         assert response2.data["results"][0]["id"] == comments[2].id
+
+    def test_order_is_stable(
+        self, list_comments, filter, ordering, pagination, api_client
+    ):
+        video = baker.make(Video)
+        items = [
+            baker.make(Comment, video=video, popularity_score=i + 1) for i in range(5)
+        ]
+        items[3].popularity_score = 1000
+        items[3].save()
+        initial_order = list(
+            Comment.objects.order_by("popularity_score").values_list("id", flat=True)
+        )
+
+        response1 = list_comments(
+            filters=[filter(field="video", lookup_type="exact", value=video.id)],
+            ordering=ordering(field="popularity_score", direction="ASC"),
+            pagination=pagination(type="snapshot", page_size=2),
+        )
+        items[1].popularity_score = 100
+        items[4].popularity_score = 0
+        Comment.objects.bulk_update(items, ["popularity_score"])
+        order = list(
+            Comment.objects.order_by("popularity_score").values_list("id", flat=True)
+        )
+        response2 = api_client.get(response1.data["next"])
+        response3 = api_client.get(response2.data["next"])
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_200_OK
+        assert response3.status_code == status.HTTP_200_OK
+        assert order != initial_order
+        assert [
+            response1.data["results"][0]["id"],
+            response1.data["results"][1]["id"],
+            response2.data["results"][0]["id"],
+            response2.data["results"][1]["id"],
+            response3.data["results"][0]["id"],
+        ] == initial_order
 
 
 @pytest.mark.django_db

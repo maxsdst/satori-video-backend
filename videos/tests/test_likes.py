@@ -305,11 +305,11 @@ class TestListLikes:
 
         response1 = list_likes(
             filters=[filter(field="video", lookup_type="exact", value=video.id)],
-            pagination=pagination(limit=2),
+            pagination=pagination(type="limit_offset", limit=2),
         )
         response2 = list_likes(
             filters=[filter(field="video", lookup_type="exact", value=video.id)],
-            pagination=pagination(limit=2, offset=2),
+            pagination=pagination(type="limit_offset", limit=2, offset=2),
         )
 
         assert response1.data["count"] == 3
