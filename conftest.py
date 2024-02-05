@@ -57,7 +57,7 @@ def other_user():
 
 
 @pytest.fixture(autouse=True)
-def media_root(settings):
+def media_root_setting(settings):
     settings.MEDIA_ROOT = settings.BASE_DIR / "media_test"
     shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
     settings.MEDIA_ROOT.mkdir()
@@ -66,8 +66,13 @@ def media_root(settings):
 
 
 @pytest.fixture(autouse=True)
-def debug(settings):
+def debug_setting(settings):
     settings.DEBUG = True
+
+
+@pytest.fixture(autouse=True)
+def test_setting(settings):
+    settings.TEST = True
 
 
 @pytest.fixture
@@ -140,14 +145,29 @@ def ordering():
 
 
 @dataclass(kw_only=True)
-class Pagination:
+class LimitOffsetPagination:
     limit: int = None
     offset: int = None
 
 
+@dataclass(kw_only=True)
+class SnapshotPagination:
+    page_size: int = None
+    cursor: str = None
+
+
 @pytest.fixture
 def pagination():
-    return Pagination
+    def _pagination(type: Literal["limit_offset", "snapshot"], **kwargs):
+        match type:
+            case "limit_offset":
+                return LimitOffsetPagination(**kwargs)
+            case "snapshot":
+                return SnapshotPagination(**kwargs)
+            case _:
+                raise Exception("Unknown pagination type")
+
+    return _pagination
 
 
 def apply_filters(filters: list[Filter], query: dict):
@@ -165,18 +185,28 @@ def apply_ordering(ordering: Ordering, query: dict):
     query["ordering"] = prefix + ordering.field
 
 
-def apply_pagination(pagination: Pagination, query: dict):
-    if pagination.limit is not None:
-        query["limit"] = pagination.limit
-    if pagination.offset is not None:
-        query["offset"] = pagination.offset
+def apply_pagination(
+    pagination: LimitOffsetPagination | SnapshotPagination, query: dict
+):
+    if isinstance(pagination, LimitOffsetPagination):
+        if pagination.limit is not None:
+            query["limit"] = pagination.limit
+        if pagination.offset is not None:
+            query["offset"] = pagination.offset
+    elif isinstance(pagination, SnapshotPagination):
+        if pagination.page_size is not None:
+            query["page_size"] = pagination.page_size
+        if pagination.cursor is not None:
+            query["cursor"] = pagination.cursor
+    else:
+        raise Exception("Unknown pagination class")
 
 
 def build_query(
     *,
     filters: list[Filter] = None,
     ordering: Ordering = None,
-    pagination: Pagination = None,
+    pagination: LimitOffsetPagination | SnapshotPagination = None,
 ) -> dict[str, str]:
     query = {}
 

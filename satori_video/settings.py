@@ -26,6 +26,8 @@ SECRET_KEY = "django-insecure-@__74)jxun%=&&y3m^4&(t%1nkbe$)ts6xk6lo0ue2i6i_2$2_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+TEST = False
+
 ALLOWED_HOSTS = []
 
 
@@ -46,6 +48,8 @@ INSTALLED_APPS = [
     "core",
     "profiles",
     "videos",
+    "snapshotpagination",
+    "snapshotpagination.tests",
 ]
 
 MIDDLEWARE = [
@@ -169,7 +173,11 @@ CELERY_BEAT_SCHEDULE = {
     "update_comment_popularity_scores": {
         "task": "videos.tasks.update_comment_popularity_scores",
         "schedule": 60 * 60,
-    }
+    },
+    "cleanup_expired_snapshots": {
+        "task": "snapshotpagination.tasks.cleanup_expired_snapshots",
+        "schedule": 60,
+    },
 }
 
 INTERNAL_IPS = [

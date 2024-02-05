@@ -16,6 +16,7 @@ ffmpeg-python = "*"
 celery = "*"
 redis = "*"
 django-filter = "*"
+freezegun = "*"
 
 [dev-packages]
 gevent = "*"

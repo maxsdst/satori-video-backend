@@ -32,3 +32,13 @@ urlpatterns = [
     path("__debug__/", include("debug_toolbar.urls")),
     path("api/", include(api_urlpatterns)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+if settings.TEST:
+    tests_urlpatterns = [
+        path(
+            "snapshotpagination/",
+            include("snapshotpagination.tests.urls", "snapshotpagination_tests"),
+        ),
+    ]
+
+    urlpatterns.append(path("tests/", include(tests_urlpatterns)))
