@@ -1,7 +1,8 @@
 from datetime import timedelta
 
+from django.contrib.auth.models import AbstractUser
 from django.db import IntegrityError, transaction
-from django.db.models import Case, Prefetch, Value, When
+from django.db.models import Case, Prefetch, QuerySet, Value, When
 from django.db.models.aggregates import Count
 from django.db.models.manager import BaseManager
 from django.utils import timezone
@@ -38,24 +39,50 @@ from .utils import has_any_filter_applied
 
 
 def get_video_queryset(request: Request) -> BaseManager[Video]:
-    user = request.user
-
-    return (
+    queryset = (
         Video.objects.select_related("profile__user")
         .annotate(view_count=Count("views", distinct=True))
         .annotate(like_count=Count("likes", distinct=True))
-        .annotate(
-            is_liked=(
-                Case(
-                    When(likes__profile=user.profile, then=Value(True)),
-                    default=Value(False),
-                )
-                if user.is_authenticated
-                else Value(False)
-            )
-        )
         .annotate(comment_count=Count("comments", distinct=True))
-        .all()
+    )
+    return annotate_videos_with_like_status(queryset, request.user)
+
+
+def annotate_videos_with_like_status(
+    queryset: QuerySet, user: AbstractUser
+) -> QuerySet:
+    """Annotate the given video queryset with a field indicating whether the user has liked each video."""
+
+    if not user.is_authenticated:
+        return queryset.annotate(is_liked=Value(False))
+
+    liked_video_ids = Like.objects.filter(profile=user.profile).values_list("video_id")
+
+    return queryset.annotate(
+        is_liked=Case(
+            When(id__in=liked_video_ids, then=Value(True)),
+            default=Value(False),
+        )
+    )
+
+
+def annotate_comments_with_like_status(
+    queryset: QuerySet, user: AbstractUser
+) -> QuerySet:
+    """Annotate the given comment queryset with a field indicating whether the user has liked each comment."""
+
+    if not user.is_authenticated:
+        return queryset.annotate(is_liked=Value(False))
+
+    liked_comment_ids = CommentLike.objects.filter(profile=user.profile).values_list(
+        "comment_id"
+    )
+
+    return queryset.annotate(
+        is_liked=Case(
+            When(id__in=liked_comment_ids, then=Value(True)),
+            default=Value(False),
+        )
     )
 
 
@@ -228,24 +255,12 @@ class CommentViewSet(ModelViewSet):
         return {"request": self.request}
 
     def get_queryset(self):
-        user = self.request.user
-
-        return (
+        queryset = (
             Comment.objects.select_related("profile__user")
             .annotate(reply_count=Count("replies", distinct=True))
             .annotate(like_count=Count("likes", distinct=True))
-            .annotate(
-                is_liked=(
-                    Case(
-                        When(likes__profile=user.profile, then=Value(True)),
-                        default=Value(False),
-                    )
-                    if user.is_authenticated
-                    else Value(False)
-                )
-            )
-            .all()
         )
+        return annotate_comments_with_like_status(queryset, self.request.user)
 
     def create(self, request: Request, *args, **kwargs):
         serializer = CreateCommentSerializer(
