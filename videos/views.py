@@ -24,6 +24,7 @@ from .serializers import (
     CommentLikeSerializer,
     CommentSerializer,
     CreateCommentLikeSerializer,
+    CreateCommentReportSerializer,
     CreateCommentSerializer,
     CreateLikeSerializer,
     CreateUploadSerializer,
@@ -44,12 +45,14 @@ def get_video_queryset(request: Request) -> BaseManager[Video]:
         .annotate(view_count=Count("views", distinct=True))
         .annotate(like_count=Count("likes", distinct=True))
         .annotate(
-            is_liked=Case(
-                When(likes__profile=user.profile, then=Value(True)),
-                default=Value(False),
+            is_liked=(
+                Case(
+                    When(likes__profile=user.profile, then=Value(True)),
+                    default=Value(False),
+                )
+                if user.is_authenticated
+                else Value(False)
             )
-            if user.is_authenticated
-            else Value(False)
         )
         .annotate(comment_count=Count("comments", distinct=True))
         .all()
@@ -232,12 +235,14 @@ class CommentViewSet(ModelViewSet):
             .annotate(reply_count=Count("replies", distinct=True))
             .annotate(like_count=Count("likes", distinct=True))
             .annotate(
-                is_liked=Case(
-                    When(likes__profile=user.profile, then=Value(True)),
-                    default=Value(False),
+                is_liked=(
+                    Case(
+                        When(likes__profile=user.profile, then=Value(True)),
+                        default=Value(False),
+                    )
+                    if user.is_authenticated
+                    else Value(False)
                 )
-                if user.is_authenticated
-                else Value(False)
             )
             .all()
         )
@@ -291,5 +296,21 @@ class CommentLikeViewSet(ModelViewSet):
         comment_id = serializer.data["comment"]
 
         CommentLike.objects.filter(comment__pk=comment_id, profile=profile).delete()
+
+        return Response(status=status.HTTP_200_OK)
+
+
+class CommentReportViewSet(ModelViewSet):
+    http_method_names = ["post", "options"]
+    serializer_class = CreateCommentReportSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request: Request, *args, **kwargs):
+        serializer = CreateCommentReportSerializer(
+            data=request.data,
+            context={"profile_id": request.user.profile.id},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
         return Response(status=status.HTTP_200_OK)

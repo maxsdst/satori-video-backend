@@ -3,7 +3,7 @@ from django.db import transaction
 from django.utils.module_loading import import_string
 from rest_framework import serializers
 
-from .models import Comment, CommentLike, Like, Upload, Video, View
+from .models import Comment, CommentLike, CommentReport, Like, Upload, Video, View
 from .signals import video_updated
 
 
@@ -173,9 +173,9 @@ class CreateCommentSerializer(serializers.ModelSerializer):
         return Comment.objects.create(
             **validated_data,
             profile_id=self.context["profile_id"],
-            mentioned_profile_username=mentioned_profile.user.username
-            if mentioned_profile
-            else None,
+            mentioned_profile_username=(
+                mentioned_profile.user.username if mentioned_profile else None
+            ),
         )
 
 
@@ -193,4 +193,16 @@ class CreateCommentLikeSerializer(serializers.ModelSerializer):
     def create(self, validated_data: dict):
         return CommentLike.objects.create(
             **validated_data, profile_id=self.context["profile_id"]
+        )
+
+
+class CreateCommentReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CommentReport
+        fields = ["id", "comment", "reason"]
+
+    def create(self, validated_data: dict):
+        return CommentReport.objects.create(
+            **validated_data,
+            profile_id=self.context["profile_id"],
         )

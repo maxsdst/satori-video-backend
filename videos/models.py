@@ -99,3 +99,23 @@ class CommentLike(models.Model):
     @transaction.atomic()
     def save(self, *args, **kwargs):
         return super().save(*args, **kwargs)
+
+
+class CommentReport(models.Model):
+    class Reason(models.TextChoices):
+        SPAM = "spam", "Unwanted commercial content or spam"
+        PORNOGRAPHY = "pornography", "Pornography or sexually explicit material"
+        CHILD_ABUSE = "child_abuse", "Child abuse"
+        HATE_SPEECH = "hate_speech", "Hate speech or graphic violence"
+        TERRORISM = "terrorism", "Promotes terrorism"
+        HARASSMENT = "harassment", "Harassment or bullying"
+        SUICIDE = "suicide", "Suicide or self injury"
+        MISINFORMATION = "misinformation", "Misinformation"
+
+    comment = models.ForeignKey(
+        Comment, on_delete=models.CASCADE, related_name="reports"
+    )
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="comment_reports"
+    )
+    reason = models.CharField(max_length=20, choices=Reason.choices)
