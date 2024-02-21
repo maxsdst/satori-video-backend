@@ -2,7 +2,16 @@ from datetime import timedelta
 
 from django.contrib.auth.models import AbstractUser
 from django.db import IntegrityError, transaction
-from django.db.models import Case, Prefetch, QuerySet, Value, When
+from django.db.models import (
+    Case,
+    Model,
+    OuterRef,
+    Prefetch,
+    QuerySet,
+    Subquery,
+    Value,
+    When,
+)
 from django.db.models.aggregates import Count
 from django.db.models.manager import BaseManager
 from django.utils import timezone
@@ -41,11 +50,21 @@ from .utils import has_any_filter_applied
 def get_video_queryset(request: Request) -> BaseManager[Video]:
     queryset = (
         Video.objects.select_related("profile__user")
-        .annotate(view_count=Count("views", distinct=True))
-        .annotate(like_count=Count("likes", distinct=True))
-        .annotate(comment_count=Count("comments", distinct=True))
+        .annotate(view_count=count_related_objects_in_subquery(Video, "views"))
+        .annotate(like_count=count_related_objects_in_subquery(Video, "likes"))
+        .annotate(comment_count=count_related_objects_in_subquery(Video, "comments"))
     )
     return annotate_videos_with_like_status(queryset, request.user)
+
+
+def count_related_objects_in_subquery(model: Model, related_name: str) -> Subquery:
+    """Generate a subquery to count related objects for each instance of the given model."""
+
+    return Subquery(
+        model.objects.filter(pk=OuterRef("pk"))
+        .annotate(count=Count(related_name, distinct=True))
+        .values("count")
+    )
 
 
 def annotate_videos_with_like_status(
@@ -257,8 +276,8 @@ class CommentViewSet(ModelViewSet):
     def get_queryset(self):
         queryset = (
             Comment.objects.select_related("profile__user")
-            .annotate(reply_count=Count("replies", distinct=True))
-            .annotate(like_count=Count("likes", distinct=True))
+            .annotate(reply_count=count_related_objects_in_subquery(Comment, "replies"))
+            .annotate(like_count=count_related_objects_in_subquery(Comment, "likes"))
         )
         return annotate_comments_with_like_status(queryset, self.request.user)
 
