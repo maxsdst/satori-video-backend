@@ -119,3 +119,16 @@ class CommentReport(models.Model):
         settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="comment_reports"
     )
     reason = models.CharField(max_length=20, choices=Reason.choices)
+
+
+class SavedVideo(models.Model):
+    class Meta:
+        unique_together = ["video", "profile"]
+
+    video = models.ForeignKey(
+        Video, on_delete=models.CASCADE, related_name="saved_videos"
+    )
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="saved_videos"
+    )
+    creation_date = models.DateTimeField(auto_now_add=True)

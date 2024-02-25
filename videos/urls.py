@@ -5,6 +5,7 @@ from .views import (
     CommentReportViewSet,
     CommentViewSet,
     LikeViewSet,
+    SavedVideoViewSet,
     UploadViewSet,
     VideoViewSet,
     ViewViewSet,
@@ -20,5 +21,6 @@ router.register("likes", LikeViewSet, basename="likes")
 router.register("comments", CommentViewSet, basename="comments")
 router.register("comment_likes", CommentLikeViewSet, basename="comment_likes")
 router.register("comment_reports", CommentReportViewSet, basename="comment_reports")
+router.register("saved_videos", SavedVideoViewSet, basename="saved_videos")
 
 urlpatterns = router.urls

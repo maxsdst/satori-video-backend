@@ -3,7 +3,16 @@ from django.db import transaction
 from django.utils.module_loading import import_string
 from rest_framework import serializers
 
-from .models import Comment, CommentLike, CommentReport, Like, Upload, Video, View
+from .models import (
+    Comment,
+    CommentLike,
+    CommentReport,
+    Like,
+    SavedVideo,
+    Upload,
+    Video,
+    View,
+)
 from .signals import video_updated
 
 
@@ -205,4 +214,23 @@ class CreateCommentReportSerializer(serializers.ModelSerializer):
         return CommentReport.objects.create(
             **validated_data,
             profile_id=self.context["profile_id"],
+        )
+
+
+class SavedVideoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SavedVideo
+        fields = ["id", "video", "profile", "creation_date"]
+
+    video = VideoSerializer()
+
+
+class CreateSavedVideoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SavedVideo
+        fields = ["id", "video"]
+
+    def create(self, validated_data: dict):
+        return SavedVideo.objects.create(
+            **validated_data, profile_id=self.context["profile_id"]
         )

@@ -27,7 +27,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
 from .filters import CommentFilter, VideoFilter
-from .models import Comment, CommentLike, Like, Upload, Video, View
+from .models import Comment, CommentLike, Like, SavedVideo, Upload, Video, View
 from .pagination import CommentPagination
 from .permissions import UserOwnsObjectOrReadOnly
 from .serializers import (
@@ -37,9 +37,11 @@ from .serializers import (
     CreateCommentReportSerializer,
     CreateCommentSerializer,
     CreateLikeSerializer,
+    CreateSavedVideoSerializer,
     CreateUploadSerializer,
     CreateViewSerializer,
     LikeSerializer,
+    SavedVideoSerializer,
     UploadSerializer,
     VideoSerializer,
 )
@@ -346,5 +348,60 @@ class CommentReportViewSet(ModelViewSet):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
+        return Response(status=status.HTTP_200_OK)
+
+
+class SavedVideoViewSet(ModelViewSet):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+    filter_backends = [OrderingFilter]
+    ordering_fields = ["creation_date"]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return CreateSavedVideoSerializer
+        return SavedVideoSerializer
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+    def get_queryset(self):
+        profile = self.request.user.profile
+        return (
+            SavedVideo.objects.select_related("profile__user")
+            .prefetch_related(Prefetch("video", get_video_queryset(self.request)))
+            .filter(profile_id=profile.id)
+            .all()
+        )
+
+    @transaction.atomic()
+    def create(self, request: Request, *args, **kwargs):
+        serializer = CreateSavedVideoSerializer(
+            data=request.data, context={"profile_id": self.request.user.profile.id}
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            saved_video = serializer.save()
+        except IntegrityError:
+            raise ParseError(detail="You have already saved this video")
+
+        saved_video = self.get_queryset().get(pk=saved_video.id)
+        serializer = SavedVideoSerializer(
+            saved_video, context={"request": self.request}
+        )
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["POST"], permission_classes=[IsAuthenticated])
+    def remove_video_from_saved(self, request: Request):
+        profile = request.user.profile
+
+        serializer = CreateSavedVideoSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        video_id = serializer.data["video"]
+
+        SavedVideo.objects.filter(video__pk=video_id, profile=profile).delete()
 
         return Response(status=status.HTTP_200_OK)
