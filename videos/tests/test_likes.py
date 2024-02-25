@@ -145,13 +145,14 @@ class TestRetrieveLike:
                 "description": like.video.description,
                 "source": like.video.source.url if like.video.source else None,
                 "thumbnail": like.video.thumbnail.url if like.video.thumbnail else None,
-                "first_frame": like.video.first_frame.url
-                if like.video.first_frame
-                else None,
+                "first_frame": (
+                    like.video.first_frame.url if like.video.first_frame else None
+                ),
                 "view_count": 0,
                 "like_count": 1,
                 "is_liked": False,
                 "comment_count": 0,
+                "is_saved": False,
             },
             "creation_date": isoformat(like.creation_date),
         }
@@ -236,6 +237,7 @@ class TestListLikes:
                 "like_count": 1,
                 "is_liked": False,
                 "comment_count": 0,
+                "is_saved": False,
             },
             "creation_date": isoformat(like.creation_date),
         }

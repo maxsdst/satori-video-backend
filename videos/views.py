@@ -56,7 +56,9 @@ def get_video_queryset(request: Request) -> BaseManager[Video]:
         .annotate(like_count=count_related_objects_in_subquery(Video, "likes"))
         .annotate(comment_count=count_related_objects_in_subquery(Video, "comments"))
     )
-    return annotate_videos_with_like_status(queryset, request.user)
+    queryset = annotate_videos_with_like_status(queryset, request.user)
+    queryset = annotate_videos_with_saved_status(queryset, request.user)
+    return queryset
 
 
 def count_related_objects_in_subquery(model: Model, related_name: str) -> Subquery:
@@ -82,6 +84,26 @@ def annotate_videos_with_like_status(
     return queryset.annotate(
         is_liked=Case(
             When(id__in=liked_video_ids, then=Value(True)),
+            default=Value(False),
+        )
+    )
+
+
+def annotate_videos_with_saved_status(
+    queryset: QuerySet, user: AbstractUser
+) -> QuerySet:
+    """Annotate the given video queryset with a field indicating whether the user has saved each video."""
+
+    if not user.is_authenticated:
+        return queryset.annotate(is_saved=Value(False))
+
+    saved_video_ids = SavedVideo.objects.filter(profile=user.profile).values_list(
+        "video_id"
+    )
+
+    return queryset.annotate(
+        is_saved=Case(
+            When(id__in=saved_video_ids, then=Value(True)),
             default=Value(False),
         )
     )

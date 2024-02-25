@@ -183,6 +183,7 @@ class TestRetrieveSavedVideo:
                 "like_count": 0,
                 "is_liked": False,
                 "comment_count": 0,
+                "is_saved": True,
             },
             "creation_date": isoformat(saved_video.creation_date),
         }
@@ -263,6 +264,7 @@ class TestListSavedVideos:
                 "like_count": 0,
                 "is_liked": False,
                 "comment_count": 0,
+                "is_saved": True,
             },
             "creation_date": isoformat(saved_video.creation_date),
         }

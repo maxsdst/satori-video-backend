@@ -7,7 +7,7 @@ from django.utils import timezone
 from model_bakery import baker
 from rest_framework import status
 
-from videos.models import Comment, Like, Video, View
+from videos.models import Comment, Like, SavedVideo, Video, View
 
 
 LIST_VIEWNAME = "videos:videos-list"
@@ -99,6 +99,7 @@ class TestRetrieveVideo:
             "like_count": 0,
             "is_liked": False,
             "comment_count": 0,
+            "is_saved": False,
         }
 
     def test_view_count(self, retrieve_video):
@@ -145,6 +146,21 @@ class TestRetrieveVideo:
         assert response.status_code == status.HTTP_200_OK
         assert response.data["id"] == video.id
         assert response.data["comment_count"] == 2
+
+    def test_is_saved_field(self, authenticate, user, retrieve_video):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        video1 = baker.make(Video)
+        video2 = baker.make(Video)
+        baker.make(SavedVideo, video=video2, profile=profile)
+
+        response1 = retrieve_video(video1.id)
+        response2 = retrieve_video(video2.id)
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response1.data["is_saved"] == False
+        assert response2.status_code == status.HTTP_200_OK
+        assert response2.data["is_saved"] == True
 
 
 @pytest.mark.django_db
@@ -337,6 +353,7 @@ class TestListVideos:
             "like_count": 0,
             "is_liked": False,
             "comment_count": 0,
+            "is_saved": False,
         }
 
     def test_filtering_by_profile(self, list_videos, filter):
