@@ -8,6 +8,7 @@ from .models import (
     CommentLike,
     CommentReport,
     Like,
+    Report,
     SavedVideo,
     Upload,
     Video,
@@ -115,6 +116,18 @@ class CreateLikeSerializer(serializers.ModelSerializer):
     def create(self, validated_data: dict):
         return Like.objects.create(
             **validated_data, profile_id=self.context["profile_id"]
+        )
+
+
+class CreateReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Report
+        fields = ["id", "video", "reason"]
+
+    def create(self, validated_data: dict):
+        return Report.objects.create(
+            **validated_data,
+            profile_id=self.context["profile_id"],
         )
 
 

@@ -5,6 +5,7 @@ from .views import (
     CommentReportViewSet,
     CommentViewSet,
     LikeViewSet,
+    ReportViewSet,
     SavedVideoViewSet,
     UploadViewSet,
     VideoViewSet,
@@ -18,6 +19,7 @@ router.register("videos", VideoViewSet, basename="videos")
 router.register("uploads", UploadViewSet, basename="uploads")
 router.register("views", ViewViewSet, basename="views")
 router.register("likes", LikeViewSet, basename="likes")
+router.register("reports", ReportViewSet, basename="reports")
 router.register("comments", CommentViewSet, basename="comments")
 router.register("comment_likes", CommentLikeViewSet, basename="comment_likes")
 router.register("comment_reports", CommentReportViewSet, basename="comment_reports")

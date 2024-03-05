@@ -37,6 +37,7 @@ from .serializers import (
     CreateCommentReportSerializer,
     CreateCommentSerializer,
     CreateLikeSerializer,
+    CreateReportSerializer,
     CreateSavedVideoSerializer,
     CreateUploadSerializer,
     CreateViewSerializer,
@@ -277,6 +278,22 @@ class LikeViewSet(ModelViewSet):
         video_id = serializer.data["video"]
 
         Like.objects.filter(video__pk=video_id, profile=profile).delete()
+
+        return Response(status=status.HTTP_200_OK)
+
+
+class ReportViewSet(ModelViewSet):
+    http_method_names = ["post", "options"]
+    serializer_class = CreateReportSerializer
+    permission_classes = [IsAuthenticated]
+
+    def create(self, request: Request, *args, **kwargs):
+        serializer = CreateReportSerializer(
+            data=request.data,
+            context={"profile_id": request.user.profile.id},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
         return Response(status=status.HTTP_200_OK)
 

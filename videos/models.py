@@ -63,6 +63,25 @@ class Like(models.Model):
     creation_date = models.DateTimeField(auto_now_add=True)
 
 
+class Report(models.Model):
+    class Reason(models.TextChoices):
+        SEX = "sex", "Sexual content"
+        VIOLENCE = "violence", "Violent or repulsive content"
+        HATE = "hate", "Hateful or abusive content"
+        HARASSMENT = "harassment", "Harassment or bullying"
+        DANGER = "danger", "Harmful or dangerous acts"
+        MISINFORMATION = "misinformation", "Misinformation"
+        CHILD_ABUSE = "child_abuse", "Child abuse"
+        TERRORISM = "terrorism", "Promotes terrorism"
+        SPAM = "spam", "Spam or misleading"
+
+    video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name="reports")
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="video_reports"
+    )
+    reason = models.CharField(max_length=20, choices=Reason.choices)
+
+
 class Comment(models.Model):
     video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name="comments")
     profile = models.ForeignKey(
