@@ -151,3 +151,18 @@ class SavedVideo(models.Model):
         settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="saved_videos"
     )
     creation_date = models.DateTimeField(auto_now_add=True)
+
+
+class Event(models.Model):
+    class Type(models.TextChoices):
+        VIEW = "view"
+        LIKE = "like"
+        SHARE = "share"
+        SAVE = "save"
+
+    type = models.CharField(max_length=20, choices=Type.choices)
+    video = models.ForeignKey(Video, on_delete=models.CASCADE, related_name="events")
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="events"
+    )
+    creation_date = models.DateTimeField(auto_now_add=True)

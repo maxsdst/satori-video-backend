@@ -7,6 +7,7 @@ from .models import (
     Comment,
     CommentLike,
     CommentReport,
+    Event,
     Like,
     Report,
     SavedVideo,
@@ -248,5 +249,16 @@ class CreateSavedVideoSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: dict):
         return SavedVideo.objects.create(
+            **validated_data, profile_id=self.context["profile_id"]
+        )
+
+
+class CreateEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = ["id", "type", "video"]
+
+    def create(self, validated_data: dict):
+        return Event.objects.create(
             **validated_data, profile_id=self.context["profile_id"]
         )
