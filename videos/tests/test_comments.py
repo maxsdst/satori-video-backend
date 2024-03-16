@@ -604,7 +604,7 @@ class TestListComments:
 
         response1 = list_comments(
             filters=[filter(field="video", lookup_type="exact", value=video.id)],
-            pagination=pagination(type="snapshot", page_size=2),
+            pagination=pagination(type="cursor", page_size=2),
         )
         response2 = api_client.get(response1.data["next"])
 
@@ -634,7 +634,7 @@ class TestListComments:
         response1 = list_comments(
             filters=[filter(field="video", lookup_type="exact", value=video.id)],
             ordering=ordering(field="popularity_score", direction="ASC"),
-            pagination=pagination(type="snapshot", page_size=2),
+            pagination=pagination(type="cursor", page_size=2),
         )
         items[1].popularity_score = 100
         items[4].popularity_score = 0

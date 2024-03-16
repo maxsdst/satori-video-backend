@@ -5,6 +5,18 @@ from typing import BinaryIO, Generator
 
 import ffmpeg
 import pytest
+from django.contrib.auth import get_user_model
+from django.db.models import signals
+
+from videos.models import Event, Video
+from videos.signals import video_created
+from videos.signals.handlers import (
+    on_post_delete_user_delete_from_recommender,
+    on_post_delete_video_delete_from_recommender,
+    on_post_save_event_insert_into_recommender,
+    on_post_save_user_insert_into_recommender,
+    on_video_created_insert_into_recommender,
+)
 
 
 @pytest.fixture
@@ -45,3 +57,28 @@ def generate_blank_video(generate_blank_image):
 def temp_dir():
     with TemporaryDirectory() as temp_dir:
         yield Path(temp_dir)
+
+
+@pytest.fixture(autouse=True)
+def disconnect_recommender_signal_receivers(request):
+    if "recommender" in request.keywords:
+        yield
+        return
+
+    user_model = get_user_model()
+
+    receivers = (
+        (user_model, signals.post_save, on_post_save_user_insert_into_recommender),
+        (user_model, signals.post_delete, on_post_delete_user_delete_from_recommender),
+        (None, video_created, on_video_created_insert_into_recommender),
+        (Video, signals.post_delete, on_post_delete_video_delete_from_recommender),
+        (Event, signals.post_save, on_post_save_event_insert_into_recommender),
+    )
+
+    for model, signal, receiver in receivers:
+        signal.disconnect(receiver, model)
+
+    yield
+
+    for model, signal, receiver in receivers:
+        signal.connect(receiver, model)

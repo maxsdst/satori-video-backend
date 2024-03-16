@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from rest_framework.settings import api_settings
 from rest_framework.utils.urls import replace_query_param
 
-from .models import Snapshot
+from ..models import Snapshot
 
 
 def get_objects_by_primary_keys(queryset: QuerySet, primary_keys: list) -> list:
@@ -26,7 +26,7 @@ def get_objects_by_primary_keys(queryset: QuerySet, primary_keys: list) -> list:
     queryset.query.where = WhereNode()
 
     objects = queryset.in_bulk(primary_keys)
-    return [objects[pk] for pk in primary_keys]
+    return [objects[pk] for pk in primary_keys if pk in objects]
 
 
 @dataclass(kw_only=True)

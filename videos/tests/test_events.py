@@ -1,3 +1,5 @@
+from time import sleep, time
+
 import pytest
 from django.conf import settings
 from model_bakery import baker
@@ -76,6 +78,28 @@ class TestCreateEvent:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.data is None
+
+    @pytest.mark.django_db(transaction=True)
+    @pytest.mark.recommender
+    def test_feedback_gets_inserted_in_recommender_system(
+        self, authenticate, user, create_event, gorse, celery_worker
+    ):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        video = baker.make(Video)
+
+        create_event({"video": video.id, "type": Event.Type.LIKE})
+        timer = time() + 20
+        has_processed = False
+        while not has_processed and time() < timer:
+            sleep(1)
+            feedbacks = gorse.list_feedbacks("", profile.user.id)
+            has_processed = len(feedbacks) > 0
+
+        assert len(feedbacks) == 1
+        assert feedbacks[0]["FeedbackType"] == Event.Type.LIKE
+        assert int(feedbacks[0]["ItemId"]) == video.id
+        assert int(feedbacks[0]["UserId"]) == profile.user.id
 
 
 @pytest.mark.django_db

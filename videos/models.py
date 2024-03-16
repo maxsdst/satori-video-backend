@@ -19,6 +19,14 @@ class Video(models.Model):
     thumbnail = models.FileField()
     first_frame = models.FileField()
 
+    @transaction.atomic()
+    def save(self, *args, **kwargs):
+        return super().save(*args, **kwargs)
+
+    @transaction.atomic()
+    def delete(self, *args, **kwargs):
+        return super().delete(*args, **kwargs)
+
 
 class Upload(models.Model):
     profile = models.ForeignKey(
@@ -166,3 +174,7 @@ class Event(models.Model):
         settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="events"
     )
     creation_date = models.DateTimeField(auto_now_add=True)
+
+    @transaction.atomic()
+    def save(self, *args, **kwargs):
+        return super().save(*args, **kwargs)

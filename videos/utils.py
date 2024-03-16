@@ -4,6 +4,8 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.files.base import File
+from django.db.models import QuerySet
+from django.db.models.sql.where import WhereNode
 from django.utils import timezone
 from rest_framework.request import Request
 from rest_framework.viewsets import ModelViewSet
@@ -110,3 +112,18 @@ def update_comment_popularity_score(comment, save: bool = True) -> None:
 
     if save:
         comment.save()
+
+
+def get_objects_by_primary_keys(queryset: QuerySet, primary_keys: list) -> list:
+    """
+    Get objects from the provided queryset by a list of primary keys, preserving the order of keys.
+    All filters from the queryset will be removed. Non-existent primary keys will be skipped.
+    """
+
+    # remove ordering
+    queryset = queryset.order_by()
+    # remove filters
+    queryset.query.where = WhereNode()
+
+    objects = queryset.in_bulk(primary_keys)
+    return [objects[pk] for pk in primary_keys if pk in objects]

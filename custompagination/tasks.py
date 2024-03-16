@@ -3,8 +3,8 @@ from datetime import timedelta
 from celery import shared_task
 from django.utils import timezone
 
-from snapshotpagination.constants import SNAPSHOT_EXPIRATION_TIME_MINUTES
-from snapshotpagination.models import Snapshot
+from .constants import SNAPSHOT_EXPIRATION_TIME_MINUTES
+from .models import Snapshot
 
 
 @shared_task

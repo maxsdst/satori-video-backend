@@ -25,10 +25,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+from gorse_client import get_gorse_client
+
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
 from .filters import CommentFilter, VideoFilter
 from .models import Comment, CommentLike, Like, SavedVideo, Upload, Video, View
-from .pagination import CommentPagination
+from .pagination import CommentPagination, VideoRecommendationPaginator
 from .permissions import UserOwnsObjectOrReadOnly
 from .serializers import (
     CommentLikeSerializer,
@@ -48,7 +50,7 @@ from .serializers import (
     VideoSerializer,
 )
 from .tasks import handle_upload
-from .utils import has_any_filter_applied
+from .utils import get_objects_by_primary_keys, has_any_filter_applied
 
 
 def get_video_queryset(request: Request) -> BaseManager[Video]:
@@ -141,6 +143,28 @@ class VideoViewSet(ModelViewSet):
 
     def get_queryset(self):
         return get_video_queryset(self.request)
+
+    @action(detail=False, methods=["GET"])
+    def recommendations(self, request: Request):
+        gorse = get_gorse_client()
+
+        user = request.user
+
+        paginator = VideoRecommendationPaginator(request)
+        limit, offset = paginator.limit, paginator.offset
+
+        if user.is_authenticated:
+            items = gorse.get_recommend(user.id, n=limit, offset=offset)
+            items = items if items else []
+        else:
+            items = gorse.get_popular(limit, offset)
+            items = [item["Id"] for item in items]
+
+        items = [int(item) for item in items]
+        videos = get_objects_by_primary_keys(get_video_queryset(request), items)
+
+        serializer = self.get_serializer(videos, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class UploadViewSet(ModelViewSet):

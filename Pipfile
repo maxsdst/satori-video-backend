@@ -17,6 +17,7 @@ celery = "*"
 redis = "*"
 django-filter = "*"
 freezegun = "*"
+pygorse = "*"
 
 [dev-packages]
 gevent = "*"

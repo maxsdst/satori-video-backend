@@ -8,13 +8,13 @@ from freezegun import freeze_time
 from model_bakery import baker
 from rest_framework import status
 
-from snapshotpagination.constants import SNAPSHOT_EXPIRATION_TIME_MINUTES
-from snapshotpagination.models import Snapshot
-from snapshotpagination.tasks import cleanup_expired_snapshots
-from snapshotpagination.tests.models import Item
+from custompagination.constants import SNAPSHOT_EXPIRATION_TIME_MINUTES
+from custompagination.models import Snapshot
+from custompagination.tasks import cleanup_expired_snapshots
+from custompagination.tests.models import Item
 
 
-LIST_VIEWNAME = "snapshotpagination_tests:items-list"
+LIST_VIEWNAME = "custompagination_tests:items_snapshot_pagination-list"
 
 
 @pytest.fixture
@@ -60,16 +60,16 @@ class TestSnapshotPagination:
 
         response1 = list_items()
         response2 = list_items(
-            pagination=pagination(type="snapshot", cursor=get_next_cursor(response1))
+            pagination=pagination(type="cursor", cursor=get_next_cursor(response1))
         )
         response3 = list_items(
-            pagination=pagination(type="snapshot", cursor=get_next_cursor(response2))
+            pagination=pagination(type="cursor", cursor=get_next_cursor(response2))
         )
         response4 = list_items(
-            pagination=pagination(type="snapshot", cursor=get_prev_cursor(response3))
+            pagination=pagination(type="cursor", cursor=get_prev_cursor(response3))
         )
         response5 = list_items(
-            pagination=pagination(type="snapshot", cursor=get_prev_cursor(response4))
+            pagination=pagination(type="cursor", cursor=get_prev_cursor(response4))
         )
 
         assert response1.status_code == status.HTTP_200_OK
@@ -138,9 +138,7 @@ class TestSnapshotPagination:
         baker.make(Item, _quantity=5)
         page_size = 4
 
-        response = list_items(
-            pagination=pagination(type="snapshot", page_size=page_size)
-        )
+        response = list_items(pagination=pagination(type="cursor", page_size=page_size))
 
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == page_size
@@ -150,9 +148,7 @@ class TestSnapshotPagination:
         baker.make(Item, _quantity=20)
         page_size = 15
 
-        response = list_items(
-            pagination=pagination(type="snapshot", page_size=page_size)
-        )
+        response = list_items(pagination=pagination(type="cursor", page_size=page_size))
 
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) < page_size
@@ -168,7 +164,7 @@ class TestSnapshotPagination:
 
         response1 = list_items(
             ordering=ordering(field="number", direction="ASC"),
-            pagination=pagination(type="snapshot", page_size=2),
+            pagination=pagination(type="cursor", page_size=2),
         )
         items[1].number = 100
         items[4].number = 0

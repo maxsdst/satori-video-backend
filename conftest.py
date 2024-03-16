@@ -8,11 +8,14 @@ from pathlib import Path
 from typing import BinaryIO, Literal
 
 import pytest
+from celery.contrib.testing.worker import start_worker
 from django.contrib.auth import get_user_model
 from django.core.files import File
 from django.urls import reverse
 from PIL import Image, UnidentifiedImageError
 from rest_framework.test import APIClient, RequestsClient
+
+from gorse_client import GorseClient, get_gorse_client
 
 
 USER_MODEL = get_user_model()
@@ -70,9 +73,10 @@ def debug_setting(settings):
     settings.DEBUG = True
 
 
-@pytest.fixture(autouse=True)
-def test_setting(settings):
-    settings.TEST = True
+@pytest.fixture
+def celery_worker(celery_app):
+    with start_worker(celery_app):
+        yield
 
 
 @pytest.fixture
@@ -151,19 +155,19 @@ class LimitOffsetPagination:
 
 
 @dataclass(kw_only=True)
-class SnapshotPagination:
+class CursorPagination:
     page_size: int = None
     cursor: str = None
 
 
 @pytest.fixture
 def pagination():
-    def _pagination(type: Literal["limit_offset", "snapshot"], **kwargs):
+    def _pagination(type: Literal["limit_offset", "cursor"], **kwargs):
         match type:
             case "limit_offset":
                 return LimitOffsetPagination(**kwargs)
-            case "snapshot":
-                return SnapshotPagination(**kwargs)
+            case "cursor":
+                return CursorPagination(**kwargs)
             case _:
                 raise Exception("Unknown pagination type")
 
@@ -185,15 +189,13 @@ def apply_ordering(ordering: Ordering, query: dict):
     query["ordering"] = prefix + ordering.field
 
 
-def apply_pagination(
-    pagination: LimitOffsetPagination | SnapshotPagination, query: dict
-):
+def apply_pagination(pagination: LimitOffsetPagination | CursorPagination, query: dict):
     if isinstance(pagination, LimitOffsetPagination):
         if pagination.limit is not None:
             query["limit"] = pagination.limit
         if pagination.offset is not None:
             query["offset"] = pagination.offset
-    elif isinstance(pagination, SnapshotPagination):
+    elif isinstance(pagination, CursorPagination):
         if pagination.page_size is not None:
             query["page_size"] = pagination.page_size
         if pagination.cursor is not None:
@@ -206,7 +208,7 @@ def build_query(
     *,
     filters: list[Filter] = None,
     ordering: Ordering = None,
-    pagination: LimitOffsetPagination | SnapshotPagination = None,
+    pagination: LimitOffsetPagination | CursorPagination = None,
 ) -> dict[str, str]:
     query = {}
 
@@ -261,3 +263,37 @@ def list_objects(api_client):
         return api_client.get(reverse(viewname), query, **kwargs)
 
     return _list_objects
+
+
+def cleanup_gorse(gorse: GorseClient) -> None:
+    all_users = []
+    cursor = ""
+
+    while True:
+        users, cursor = gorse.get_users(10000, cursor)
+        all_users += users
+        if not cursor:
+            break
+
+    for user in users:
+        gorse.delete_user(user["UserId"])
+
+    all_items = []
+    cursor = ""
+
+    while True:
+        items, cursor = gorse.get_items(10000, cursor)
+        all_items += items
+        if not cursor:
+            break
+
+    for item in items:
+        gorse.delete_item(item["ItemId"])
+
+
+@pytest.fixture
+def gorse():
+    gorse = get_gorse_client()
+    cleanup_gorse(gorse)
+    yield gorse
+    cleanup_gorse(gorse)

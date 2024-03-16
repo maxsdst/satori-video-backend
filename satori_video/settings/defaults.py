@@ -14,7 +14,7 @@ from datetime import timedelta
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 # Quick-start development settings - unsuitable for production
@@ -48,8 +48,8 @@ INSTALLED_APPS = [
     "core",
     "profiles",
     "videos",
-    "snapshotpagination",
-    "snapshotpagination.tests",
+    "custompagination",
+    "custompagination.tests",
 ]
 
 MIDDLEWARE = [
@@ -175,8 +175,12 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 60 * 60,
     },
     "cleanup_expired_snapshots": {
-        "task": "snapshotpagination.tasks.cleanup_expired_snapshots",
+        "task": "custompagination.tasks.cleanup_expired_snapshots",
         "schedule": 60,
+    },
+    "sync_recommender_system_data": {
+        "task": "videos.tasks.sync_recommender_system_data",
+        "schedule": 60 * 60,
     },
 }
 
@@ -186,3 +190,6 @@ INTERNAL_IPS = [
 
 PROFILE_MODEL = "profiles.Profile"
 PROFILE_SERIALIZER = "profiles.serializers.ProfileSerializer"
+
+GORSE_ENTRY_POINT = "http://127.0.0.1:8087"
+GORSE_API_KEY = ""

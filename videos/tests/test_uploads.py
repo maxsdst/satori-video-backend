@@ -2,7 +2,6 @@ from pathlib import Path
 from time import sleep, time
 
 import pytest
-from celery.contrib.testing.worker import start_worker
 from django.conf import settings
 from model_bakery import baker
 from rest_framework import status
@@ -129,41 +128,61 @@ class TestCreateUpload:
 
     @pytest.mark.django_db(transaction=True)
     def test_if_video_is_valid_processing_succeeds(
-        self, authenticate, create_upload, valid_video, user, celery_app
+        self, authenticate, create_upload, valid_video, user, celery_worker
     ):
-        with start_worker(celery_app):
-            authenticate(user=user)
-            baker.make(settings.PROFILE_MODEL, user=user)
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
 
-            response = create_upload({"file": valid_video})
-            upload_id = response.data["id"]
-            upload = Upload.objects.get(id=upload_id)
-            timer = time() + 20
-            while not upload.is_done and time() < timer:
-                upload.refresh_from_db()
-                sleep(0.1)
+        response = create_upload({"file": valid_video})
+        upload_id = response.data["id"]
+        upload = Upload.objects.get(id=upload_id)
+        timer = time() + 20
+        while not upload.is_done and time() < timer:
+            upload.refresh_from_db()
+            sleep(0.1)
 
-            assert upload.is_done == True
-            assert upload.video.id > 0
+        assert upload.is_done == True
+        assert upload.video.id > 0
 
     @pytest.mark.django_db(transaction=True)
     def test_derives_video_title_from_filename(
-        self, authenticate, create_upload, valid_video, user, celery_app
+        self, authenticate, create_upload, valid_video, user, celery_worker
     ):
-        with start_worker(celery_app):
-            authenticate(user=user)
-            baker.make(settings.PROFILE_MODEL, user=user)
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
 
-            response = create_upload({"file": valid_video})
-            upload_id = response.data["id"]
-            upload = Upload.objects.get(id=upload_id)
-            timer = time() + 20
-            while not upload.is_done and time() < timer:
-                upload.refresh_from_db()
-                sleep(0.1)
+        response = create_upload({"file": valid_video})
+        upload_id = response.data["id"]
+        upload = Upload.objects.get(id=upload_id)
+        timer = time() + 20
+        while not upload.is_done and time() < timer:
+            upload.refresh_from_db()
+            sleep(0.1)
 
-            assert upload.video.title != ""
-            assert upload.video.title == Path(valid_video.name).stem
+        assert upload.video.title != ""
+        assert upload.video.title == Path(valid_video.name).stem
+
+    @pytest.mark.django_db(transaction=True)
+    @pytest.mark.recommender
+    def test_video_gets_inserted_in_recommender_system(
+        self, authenticate, create_upload, valid_video, user, gorse, celery_worker
+    ):
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
+
+        response = create_upload({"file": valid_video})
+        upload_id = response.data["id"]
+        upload = Upload.objects.get(id=upload_id)
+        timer = time() + 20
+        has_processed = False
+        while not has_processed and time() < timer:
+            sleep(1)
+            items, _ = gorse.get_items(n=10)
+            has_processed = len(items) > 0
+        upload.refresh_from_db()
+
+        assert len(items) == 1
+        assert int(items[0]["ItemId"]) == upload.video.id
 
 
 @pytest.mark.django_db
