@@ -64,6 +64,14 @@ def recommendations(list_objects):
     return _recommendations
 
 
+@pytest.fixture
+def popular(list_objects):
+    def _popular(*, pagination=None):
+        return list_objects("videos:videos-popular", pagination=pagination)
+
+    return _popular
+
+
 @pytest.mark.django_db
 class TestCreateVideo:
     def test_returns_405(self, create_video):
@@ -629,3 +637,32 @@ class TestRecommendations:
         assert response2.data["previous"] is not None
         assert response2.data["next"] is None
         assert len(response2.data["results"]) == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.recommender
+class TestPopular:
+    def test_if_user_is_anonymous_returns_200(self, popular, gorse):
+        response = popular()
+
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_if_user_is_authenticated_returns_200(
+        self, authenticate, user, popular, gorse
+    ):
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
+
+        response = popular()
+
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_cursor_pagination(self, authenticate, user, popular, gorse):
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
+
+        response = popular()
+
+        assert response.data["previous"] is None
+        assert response.data["next"] is None
+        assert len(response.data["results"]) == 0

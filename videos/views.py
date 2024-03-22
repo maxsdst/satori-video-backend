@@ -166,6 +166,24 @@ class VideoViewSet(ModelViewSet):
         serializer = self.get_serializer(videos, many=True)
         return paginator.get_paginated_response(serializer.data)
 
+    @action(detail=False, methods=["GET"])
+    def popular(self, request: Request):
+        gorse = get_gorse_client()
+
+        user = request.user
+        user_id = user.id if user.is_authenticated else None
+
+        paginator = VideoRecommendationPaginator(request)
+        limit, offset = paginator.limit, paginator.offset
+
+        items = gorse.get_popular(limit, offset, user_id)
+        items = [int(item["Id"]) for item in items]
+
+        videos = get_objects_by_primary_keys(get_video_queryset(request), items)
+
+        serializer = self.get_serializer(videos, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
 
 class UploadViewSet(ModelViewSet):
     http_method_names = ["get", "post", "head", "options"]
