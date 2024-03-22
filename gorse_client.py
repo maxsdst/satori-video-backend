@@ -39,6 +39,15 @@ class GorseClient(Gorse):
 
         return self.__request("GET", f"{self.entry_point}/api/popular", params=params)
 
+    def get_latest(self, n: int, offset: int, user_id: str = None) -> list[dict]:
+        """Get the latest items."""
+
+        params = {"n": n, "offset": offset}
+        if user_id:
+            params["user-id"] = user_id
+
+        return self.__request("GET", f"{self.entry_point}/api/latest", params=params)
+
 
 def get_gorse_client() -> GorseClient:
     """Get instance of Gorse client."""

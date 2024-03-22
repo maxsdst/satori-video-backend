@@ -72,6 +72,14 @@ def popular(list_objects):
     return _popular
 
 
+@pytest.fixture
+def latest(list_objects):
+    def _latest(*, pagination=None):
+        return list_objects("videos:videos-latest", pagination=pagination)
+
+    return _latest
+
+
 @pytest.mark.django_db
 class TestCreateVideo:
     def test_returns_405(self, create_video):
@@ -666,3 +674,116 @@ class TestPopular:
         assert response.data["previous"] is None
         assert response.data["next"] is None
         assert len(response.data["results"]) == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.recommender
+class TestLatest:
+    def test_if_user_is_anonymous_returns_200(self, latest, gorse):
+        video = baker.make(Video)
+        gorse.insert_item(
+            {
+                "Categories": [],
+                "Comment": "",
+                "IsHidden": False,
+                "ItemId": str(video.id),
+                "Labels": [],
+                "Timestamp": video.upload_date.isoformat(),
+            }
+        )
+
+        timer = time() + 30
+        has_processed = False
+        while not has_processed and time() < timer:
+            sleep(1)
+            response = latest()
+            has_processed = len(response.data["results"]) > 0
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == video.id
+
+    def test_returns_videos(self, authenticate, user, latest, isoformat, gorse):
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
+        video = baker.make(Video)
+        gorse.insert_item(
+            {
+                "Categories": [],
+                "Comment": "",
+                "IsHidden": False,
+                "ItemId": str(video.id),
+                "Labels": [],
+                "Timestamp": video.upload_date.isoformat(),
+            }
+        )
+
+        timer = time() + 30
+        has_processed = False
+        while not has_processed and time() < timer:
+            sleep(1)
+            response = latest()
+            has_processed = len(response.data["results"]) > 0
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0] == {
+            "id": video.id,
+            "profile": {
+                "id": video.profile.id,
+                "user": {
+                    "id": video.profile.user.id,
+                    "username": video.profile.user.username,
+                },
+                "full_name": video.profile.full_name,
+                "description": video.profile.description,
+                "avatar": video.profile.avatar,
+            },
+            "upload_date": isoformat(video.upload_date),
+            "title": video.title,
+            "description": video.description,
+            "source": video.source.url if video.source else None,
+            "thumbnail": video.thumbnail.url if video.thumbnail else None,
+            "first_frame": video.first_frame.url if video.first_frame else None,
+            "view_count": 0,
+            "like_count": 0,
+            "is_liked": False,
+            "comment_count": 0,
+            "is_saved": False,
+        }
+
+    def test_cursor_pagination(
+        self, authenticate, user, latest, pagination, api_client, gorse
+    ):
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
+        videos = [baker.make(Video) for i in range(3)]
+        gorse.insert_items(
+            [
+                {
+                    "Categories": [],
+                    "Comment": "",
+                    "IsHidden": False,
+                    "ItemId": str(video.id),
+                    "Labels": [],
+                    "Timestamp": video.upload_date.isoformat(),
+                }
+                for video in videos
+            ]
+        )
+
+        timer = time() + 30
+        has_processed = False
+        while not has_processed and time() < timer:
+            sleep(1)
+            response1 = latest(pagination=pagination(type="cursor", page_size=2))
+            has_processed = len(response1.data["results"]) > 0
+
+        response2 = api_client.get(response1.data["next"])
+
+        assert response1.data["previous"] is None
+        assert response1.data["next"] is not None
+        assert len(response1.data["results"]) == 2
+        assert response2.data["previous"] is not None
+        assert response2.data["next"] is None
+        assert len(response2.data["results"]) == 1
