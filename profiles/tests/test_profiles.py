@@ -79,6 +79,18 @@ def retrieve_profile_by_username(api_client):
     return do_retrieve_profile_by_username
 
 
+@pytest.fixture
+def search(list_objects, filter):
+    def _search(query: str, pagination=None):
+        return list_objects(
+            "profiles:profiles-search",
+            filters=[filter(field="query", lookup_type="exact", value=query)],
+            pagination=pagination,
+        )
+
+    return _search
+
+
 @pytest.mark.django_db
 class TestCreateProfile:
     def test_returns_404(self, create_profile):
@@ -303,3 +315,92 @@ class TestRetrieveProfileByUsername:
             "description": profile.description,
             "avatar": profile.avatar,
         }
+
+
+@pytest.mark.django_db
+class TestSearch:
+    def test_if_query_is_empty_returns_400(self, search):
+        response = search("  ")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["detail"] is not None
+
+    def test_returns_profiles(self, create_user, search):
+        user = create_user("ab_test_c")
+        profile = baker.make(Profile, user=user)
+
+        response = search("test")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0] == {
+            "id": profile.id,
+            "user": {"id": user.id, "username": user.username},
+            "full_name": profile.full_name,
+            "description": profile.description,
+            "avatar": profile.avatar.url if profile.avatar else None,
+        }
+
+    def test_filters_profiles(self, search):
+        profile1 = baker.make(Profile, full_name="123")
+        profile2 = baker.make(Profile, full_name="test")
+        profile3 = baker.make(Profile, full_name="abc")
+
+        response = search("test")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == profile2.id
+
+    def test_searches_by_username(self, create_user, search):
+        user = create_user("ab_test_c")
+        profile = baker.make(Profile, user=user)
+
+        response = search("test")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == profile.id
+
+    def test_searches_by_full_name(self, search):
+        profile = baker.make(Profile, full_name="abc test 123")
+
+        response = search("test")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == profile.id
+
+    def test_search_is_case_insensitive(self, search):
+        profile = baker.make(Profile, full_name="abc TeSt 123")
+
+        response = search("tEsT")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == profile.id
+
+    def test_query_string_gets_normalized(self, search):
+        profile = baker.make(Profile, full_name="abc test 123")
+
+        response = search("  c   test  1 ")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == profile.id
+
+    def test_cursor_pagination(self, search, pagination, api_client):
+        profiles = [baker.make(Profile, full_name="test") for i in range(3)]
+
+        response1 = search("test", pagination=pagination(type="cursor", page_size=2))
+        response2 = api_client.get(response1.data["next"])
+
+        assert response1.data["previous"] is None
+        assert response1.data["next"] is not None
+        assert len(response1.data["results"]) == 2
+        assert response1.data["results"][0]["id"] == profiles[0].id
+        assert response1.data["results"][1]["id"] == profiles[1].id
+        assert response2.data["previous"] is not None
+        assert response2.data["next"] is None
+        assert len(response2.data["results"]) == 1
+        assert response2.data["results"][0]["id"] == profiles[2].id

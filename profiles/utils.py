@@ -1,3 +1,4 @@
+import re
 from io import BytesIO
 from pathlib import Path
 
@@ -54,3 +55,12 @@ def get_available_random_filename(parent_dir: Path, suffix: str, length: int) ->
         raise ValueError("Try limit exceeded. Filename length may be too short")
 
     return filename
+
+
+def normalize_search_query(search_query: str) -> str:
+    # replace whitespace with single space character
+    result = re.sub("\s+", " ", search_query)
+    # remove leading and trailing whitespace
+    result = result.strip()
+
+    return result
