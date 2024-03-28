@@ -1,4 +1,16 @@
+from datetime import datetime, timedelta
+
 import pytest
+
+
+def are_dicts_equal(a: dict, b: dict, ignore_keys: list) -> bool:
+    ka = set(a).difference(ignore_keys)
+    kb = set(b).difference(ignore_keys)
+    return ka == kb and all(a[k] == b[k] for k in ka)
+
+
+def are_datetimes_approximately_equal(datetime1: datetime, datetime2: datetime):
+    return datetime1 - datetime2 < timedelta(seconds=1)
 
 
 @pytest.mark.recommender
@@ -93,7 +105,16 @@ class TestInsertItems:
 
         assert response == {"RowAffected": 2}
         assert len(initial_items) == 0
-        assert items == items_to_insert
+        assert are_dicts_equal(items[0], items_to_insert[0], ["Timestamp"])
+        assert are_dicts_equal(items[1], items_to_insert[1], ["Timestamp"])
+        assert are_datetimes_approximately_equal(
+            datetime.fromisoformat(items[0]["Timestamp"]),
+            datetime.fromisoformat(items_to_insert[0]["Timestamp"]),
+        )
+        assert are_datetimes_approximately_equal(
+            datetime.fromisoformat(items[1]["Timestamp"]),
+            datetime.fromisoformat(items_to_insert[1]["Timestamp"]),
+        )
 
 
 @pytest.mark.recommender

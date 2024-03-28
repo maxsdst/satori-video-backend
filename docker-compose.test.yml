@@ -46,7 +46,7 @@ services:
       - 18088:8088
     environment:
       GORSE_CACHE_STORE: redis://redis:6379/3
-      GORSE_DATA_STORE: mysql://root:FireIsComing!@tcp(host.docker.internal:3306)/test_gorse
+      GORSE_DATA_STORE: postgres://admin:FireIsComing!@host.docker.internal:5432/test_gorse?sslmode=disable
     command: >
       -c /etc/gorse/config.toml 
       --log-path /var/log/gorse/master.log 

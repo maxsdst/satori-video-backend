@@ -93,10 +93,10 @@ WSGI_APPLICATION = "satori_video.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.mysql",
+        "ENGINE": "django.db.backends.postgresql",
         "NAME": "satori_video",
         "HOST": "localhost",
-        "USER": "root",
+        "USER": "admin",
         "PASSWORD": "FireIsComing!",
     }
 }
