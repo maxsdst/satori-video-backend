@@ -80,6 +80,18 @@ def latest(list_objects):
     return _latest
 
 
+@pytest.fixture
+def search(list_objects, filter):
+    def _search(query: str, pagination=None):
+        return list_objects(
+            "videos:videos-search",
+            filters=[filter(field="query", lookup_type="exact", value=query)],
+            pagination=pagination,
+        )
+
+    return _search
+
+
 @pytest.mark.django_db
 class TestCreateVideo:
     def test_returns_405(self, create_video):
@@ -787,3 +799,107 @@ class TestLatest:
         assert response2.data["previous"] is not None
         assert response2.data["next"] is None
         assert len(response2.data["results"]) == 1
+
+
+@pytest.mark.django_db
+class TestSearch:
+    def test_if_query_is_empty_returns_400(self, search):
+        response = search("  ")
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["detail"] is not None
+
+    def test_returns_videos(self, search, isoformat):
+        video = baker.make(Video, title="ab test c")
+
+        response = search("test")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0] == {
+            "id": video.id,
+            "profile": {
+                "id": video.profile.id,
+                "user": {
+                    "id": video.profile.user.id,
+                    "username": video.profile.user.username,
+                },
+                "full_name": video.profile.full_name,
+                "description": video.profile.description,
+                "avatar": video.profile.avatar,
+            },
+            "upload_date": isoformat(video.upload_date),
+            "title": video.title,
+            "description": video.description,
+            "source": video.source.url if video.source else None,
+            "thumbnail": video.thumbnail.url if video.thumbnail else None,
+            "first_frame": video.first_frame.url if video.first_frame else None,
+            "view_count": 0,
+            "like_count": 0,
+            "is_liked": False,
+            "comment_count": 0,
+            "is_saved": False,
+        }
+
+    def test_filters_videos(self, search):
+        video1 = baker.make(Video, title="123")
+        video2 = baker.make(Video, title="test")
+        video3 = baker.make(Video, title="abc")
+
+        response = search("test")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == video2.id
+
+    def test_searches_by_title(self, search):
+        video = baker.make(Video, title="ab test c")
+
+        response = search("test")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == video.id
+
+    def test_searches_by_description(self, search):
+        video = baker.make(Video, description="ab test c")
+
+        response = search("test")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == video.id
+
+    def test_search_is_case_insensitive(self, search):
+        video = baker.make(Video, title="abc TeSt 123")
+
+        response = search("tEsT")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == video.id
+
+    def test_query_string_gets_normalized(self, search):
+        video = baker.make(Video, title="abc test 123 ok")
+
+        response = search("  ok   test  ")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0]["id"] == video.id
+
+    def test_cursor_pagination(self, search, pagination, api_client):
+        videos = [baker.make(Video, title="test") for i in range(3)]
+
+        response1 = search("test", pagination=pagination(type="cursor", page_size=2))
+        response2 = api_client.get(response1.data["next"])
+
+        assert response1.data["previous"] is None
+        assert response1.data["next"] is not None
+        assert len(response1.data["results"]) == 2
+        assert response1.data["results"][0]["id"] == videos[0].id
+        assert response1.data["results"][1]["id"] == videos[1].id
+        assert response2.data["previous"] is not None
+        assert response2.data["next"] is None
+        assert len(response2.data["results"]) == 1
+        assert response2.data["results"][0]["id"] == videos[2].id

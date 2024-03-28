@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import AbstractUser
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import IntegrityError, transaction
 from django.db.models import (
     Case,
@@ -30,7 +31,11 @@ from gorse_client import get_gorse_client
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
 from .filters import CommentFilter, VideoFilter
 from .models import Comment, CommentLike, Like, SavedVideo, Upload, Video, View
-from .pagination import CommentPagination, VideoRecommendationPaginator
+from .pagination import (
+    CommentPagination,
+    VideoRecommendationPaginator,
+    VideoSearchPagination,
+)
 from .permissions import UserOwnsObjectOrReadOnly
 from .serializers import (
     CommentLikeSerializer,
@@ -201,6 +206,29 @@ class VideoViewSet(ModelViewSet):
 
         serializer = self.get_serializer(videos, many=True)
         return paginator.get_paginated_response(serializer.data)
+
+    @action(detail=False, methods=["GET"])
+    def search(self, request: Request):
+        query = request.query_params.get("query", "")
+        if not query.strip():
+            raise ParseError("You must provide a query")
+
+        vector = SearchVector("title", weight="A") + SearchVector(
+            "description", weight="B"
+        )
+        query = SearchQuery(query)
+
+        videos = (
+            self.get_queryset()
+            .annotate(rank=SearchRank(vector, query))
+            .filter(rank__gte=0.1)
+            .order_by("-rank")
+        )
+
+        pagination = VideoSearchPagination()
+        page = pagination.paginate_queryset(videos, request)
+        serializer = self.get_serializer(page, many=True)
+        return pagination.get_paginated_response(serializer.data)
 
 
 class UploadViewSet(ModelViewSet):

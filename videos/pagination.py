@@ -7,3 +7,7 @@ class CommentPagination(SnapshotPagination):
 
 class VideoRecommendationPaginator(LimitOffsetCursorPaginator):
     max_page_size = 10
+
+
+class VideoSearchPagination(SnapshotPagination):
+    max_page_size = 50
