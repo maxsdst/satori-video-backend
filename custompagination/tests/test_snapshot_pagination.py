@@ -55,6 +55,14 @@ class TestSnapshotPagination:
             {"id": items[1].id, "number": items[1].number},
         ]
 
+    def test_if_no_items_returns_200(self, list_items):
+        response = list_items()
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["next"] is None
+        assert response.data["previous"] is None
+        assert response.data["results"] == []
+
     def test_cursor(self, list_items, pagination):
         items = baker.make(Item, _quantity=5)
 

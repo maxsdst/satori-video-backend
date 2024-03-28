@@ -60,10 +60,19 @@ class SnapshotPagination(BasePagination):
 
         if not self.cursor:
             self.cursor = Cursor(
-                snapshot_id=self.snapshot.id, pk=self.snapshot.primary_keys[0]
+                snapshot_id=self.snapshot.id,
+                pk=(
+                    self.snapshot.primary_keys[0]
+                    if self.snapshot.primary_keys
+                    else None
+                ),
             )
 
-        self.cursor_pk_index = self.snapshot.primary_keys.index(self.cursor.pk)
+        self.cursor_pk_index = (
+            self.snapshot.primary_keys.index(self.cursor.pk)
+            if self.cursor.pk is not None
+            else 0
+        )
 
         return self._get_results(queryset)
 
