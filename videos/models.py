@@ -60,6 +60,19 @@ class View(models.Model):
     creation_date = models.DateTimeField(auto_now_add=True)
 
 
+class HistoryEntry(models.Model):
+    class Meta:
+        ordering = ["-creation_date"]
+
+    video = models.ForeignKey(
+        Video, on_delete=models.CASCADE, related_name="history_entries"
+    )
+    profile = models.ForeignKey(
+        settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="history"
+    )
+    creation_date = models.DateTimeField(auto_now_add=True)
+
+
 class Like(models.Model):
     class Meta:
         unique_together = ["video", "profile"]

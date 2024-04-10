@@ -1,4 +1,5 @@
 from datetime import timedelta
+from zoneinfo import ZoneInfoNotFoundError
 
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
@@ -24,15 +25,25 @@ from rest_framework.filters import OrderingFilter
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from gorse_client import get_gorse_client
 
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
 from .filters import CommentFilter, VideoFilter
-from .models import Comment, CommentLike, Like, SavedVideo, Upload, Video, View
+from .models import (
+    Comment,
+    CommentLike,
+    HistoryEntry,
+    Like,
+    SavedVideo,
+    Upload,
+    Video,
+    View,
+)
 from .pagination import (
     CommentPagination,
+    HistoryPagination,
     VideoRecommendationPaginator,
     VideoSearchPagination,
 )
@@ -44,16 +55,19 @@ from .serializers import (
     CreateCommentReportSerializer,
     CreateCommentSerializer,
     CreateEventSerializer,
+    CreateHistoryEntrySerializer,
     CreateLikeSerializer,
     CreateReportSerializer,
     CreateSavedVideoSerializer,
     CreateUploadSerializer,
     CreateViewSerializer,
+    HistoryEntrySerializer,
     LikeSerializer,
     SavedVideoSerializer,
     UploadSerializer,
     VideoSerializer,
 )
+from .signals import view_created
 from .tasks import handle_upload
 from .utils import get_objects_by_primary_keys, has_any_filter_applied
 
@@ -273,6 +287,7 @@ class ViewViewSet(ModelViewSet):
     http_method_names = ["post", "options"]
     serializer_class = CreateViewSerializer
 
+    @transaction.atomic()
     def create(self, request: Request, *args, **kwargs):
         serializer = CreateViewSerializer(
             data=request.data,
@@ -292,6 +307,8 @@ class ViewViewSet(ModelViewSet):
         ):
             serializer.save()
 
+        view_created.send(self, request=request)
+
         return Response(status=status.HTTP_200_OK)
 
 
@@ -309,6 +326,96 @@ def has_viewed_video(request: Request, video_id: int, period: timedelta) -> bool
 
     session_id = request._request.session["id"]
     return views.filter(session_id=session_id).exists()
+
+
+class HistoryViewSet(GenericViewSet):
+    http_method_names = ["get", "post", "head", "options"]
+    permission_classes = [IsAuthenticated]
+    serializer_class = HistoryEntrySerializer
+    pagination_class = HistoryPagination
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+    def get_queryset(self):
+        profile = self.request.user.profile
+        return (
+            HistoryEntry.objects.select_related("profile__user")
+            .prefetch_related(Prefetch("video", get_video_queryset(self.request)))
+            .filter(profile_id=profile.id)
+            .all()
+        )
+
+    @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
+    def grouped_by_date(self, request: Request):
+        tz = request.query_params.get("tz", "").strip()
+        if not tz:
+            raise ParseError("You must provide a timezone")
+
+        try:
+            with timezone.override(tz):
+                subquery = Subquery(
+                    HistoryEntry.objects.order_by(
+                        "-creation_date__date", "video", "-creation_date"
+                    )
+                    .distinct("creation_date__date", "video")
+                    .values("id")
+                )
+                queryset = (
+                    self.get_queryset()
+                    .filter(id__in=subquery)
+                    .order_by("-creation_date")
+                )
+
+                entries = self.paginate_queryset(queryset)
+
+                results = group_history_entries_by_date(entries)
+                for item in results:
+                    item["entries"] = self.get_serializer(
+                        item["entries"], many=True
+                    ).data
+        except ZoneInfoNotFoundError:
+            raise ParseError("Invalid timezone")
+
+        return self.get_paginated_response(results)
+
+    @action(detail=False, methods=["POST"], permission_classes=[IsAuthenticated])
+    def remove_video_from_history(self, request: Request):
+        profile = request.user.profile
+
+        serializer = CreateHistoryEntrySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        video_id = serializer.data["video"]
+
+        HistoryEntry.objects.filter(video__pk=video_id, profile=profile).delete()
+
+        return Response(status=status.HTTP_200_OK)
+
+
+def group_history_entries_by_date(history_entries: list[HistoryEntry]) -> list[dict]:
+    """Groups the given list of history entries sorted by creation date by date."""
+
+    if not history_entries:
+        return []
+
+    results = []
+    last_date = history_entries[0].creation_date.astimezone().date()
+    entries = []
+
+    for entry in history_entries:
+        date = entry.creation_date.astimezone().date()
+
+        if date != last_date:
+            results.append({"date": last_date, "entries": entries})
+            last_date = date
+            entries = []
+
+        entries.append(entry)
+
+    results.append({"date": last_date, "entries": entries})
+
+    return results
 
 
 class LikeViewSet(ModelViewSet):

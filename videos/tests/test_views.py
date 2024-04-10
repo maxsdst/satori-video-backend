@@ -3,7 +3,7 @@ from django.conf import settings
 from model_bakery import baker
 from rest_framework import status
 
-from videos.models import Video, View
+from videos.models import HistoryEntry, Video, View
 
 
 LIST_VIEWNAME = "videos:views-list"
@@ -87,6 +87,47 @@ class TestCreateView:
         assert response1.status_code == status.HTTP_200_OK
         assert response2.status_code == status.HTTP_200_OK
         assert View.objects.filter(video=video).count() == 1
+
+    def test_history_entry_is_created(self, authenticate, user, create_view):
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
+        video = baker.make(Video)
+        initial_entry_count = HistoryEntry.objects.filter(video=video).count()
+
+        response = create_view({"video": video.id})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert initial_entry_count == 0
+        assert HistoryEntry.objects.filter(video=video).count() == 1
+
+    def test_if_user_is_anonymous_history_entry_is_not_created(self, create_view):
+        video = baker.make(Video)
+        initial_entry_count = HistoryEntry.objects.filter(video=video).count()
+
+        response = create_view({"video": video.id})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert initial_entry_count == 0
+        assert HistoryEntry.objects.filter(video=video).count() == 0
+
+    def test_can_immediately_create_duplicate_history_entry(
+        self, authenticate, user, create_view
+    ):
+        authenticate(user=user)
+        baker.make(settings.PROFILE_MODEL, user=user)
+        video = baker.make(Video)
+        initial_view_count = View.objects.filter(video=video).count()
+        initial_entry_count = HistoryEntry.objects.filter(video=video).count()
+
+        response1 = create_view({"video": video.id})
+        response2 = create_view({"video": video.id})
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_200_OK
+        assert initial_view_count == 0
+        assert initial_entry_count == 0
+        assert View.objects.filter(video=video).count() == 1
+        assert HistoryEntry.objects.filter(video=video).count() == 2
 
 
 @pytest.mark.django_db

@@ -1,11 +1,13 @@
 import random
 import shutil
 import string
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from typing import BinaryIO, Literal
+from unittest import mock
 
 import pytest
 from celery.contrib.testing.worker import start_worker
@@ -52,7 +54,7 @@ def create_user():
         return USER_MODEL.objects.create(
             username=username, password=password, email=email
         )
-    
+
     return _create_user
 
 
@@ -264,10 +266,13 @@ def delete_object(api_client):
 @pytest.fixture
 def list_objects(api_client):
     def _list_objects(
-        viewname, *, filters=None, ordering=None, pagination=None, **kwargs
+        viewname, query=None, *, filters=None, ordering=None, pagination=None, **kwargs
     ):
-        query = build_query(filters=filters, ordering=ordering, pagination=pagination)
-        return api_client.get(reverse(viewname), query, **kwargs)
+        full_query = {
+            **build_query(filters=filters, ordering=ordering, pagination=pagination),
+            **(query if query is not None else {}),
+        }
+        return api_client.get(reverse(viewname), full_query, **kwargs)
 
     return _list_objects
 
@@ -304,3 +309,15 @@ def gorse():
     cleanup_gorse(gorse)
     yield gorse
     cleanup_gorse(gorse)
+
+
+@pytest.fixture
+def mock_current_datetime():
+    @contextmanager
+    def _mock_current_datetime(mocked_datetime: datetime):
+        with mock.patch(
+            "django.utils.timezone.now", mock.Mock(return_value=mocked_datetime)
+        ):
+            yield
+
+    return _mock_current_datetime

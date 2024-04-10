@@ -8,6 +8,7 @@ from .models import (
     CommentLike,
     CommentReport,
     Event,
+    HistoryEntry,
     Like,
     Report,
     SavedVideo,
@@ -97,6 +98,25 @@ class CreateViewSerializer(serializers.ModelSerializer):
             **validated_data,
             profile_id=self.context["profile_id"],
             session_id=self.context["session_id"],
+        )
+
+
+class HistoryEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HistoryEntry
+        fields = ["id", "video", "profile", "creation_date"]
+
+    video = VideoSerializer()
+
+
+class CreateHistoryEntrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HistoryEntry
+        fields = ["id", "video"]
+
+    def create(self, validated_data: dict):
+        return HistoryEntry.objects.create(
+            **validated_data, profile_id=self.context["profile_id"]
         )
 
 

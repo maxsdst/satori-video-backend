@@ -2,8 +2,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
+from rest_framework.request import Request
 
 from ..models import Comment, CommentLike, Event, Upload, Video
+from ..serializers import CreateHistoryEntrySerializer
 from ..tasks import (
     delete_user_from_recommender_system,
     delete_video_from_recommender_system,
@@ -12,7 +14,7 @@ from ..tasks import (
     insert_video_in_recommender_system,
 )
 from ..utils import update_comment_popularity_score
-from . import video_created, video_updated
+from . import video_created, video_updated, view_created
 
 
 USER_MODEL = get_user_model()
@@ -77,3 +79,15 @@ def on_post_save_event_insert_into_recommender(
 ):
     if created:
         insert_feedback_in_recommender_system.delay(instance.id)
+
+
+@receiver(view_created)
+def on_view_created_create_history_entry(sender, request: Request, **kwargs):
+    if not request.user.is_authenticated:
+        return
+
+    serializer = CreateHistoryEntrySerializer(
+        data=request.data, context={"profile_id": request.user.profile.id}
+    )
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
