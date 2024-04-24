@@ -164,6 +164,7 @@ class CommentReport(models.Model):
 class SavedVideo(models.Model):
     class Meta:
         unique_together = ["video", "profile"]
+        ordering = ["-creation_date"]
 
     video = models.ForeignKey(
         Video, on_delete=models.CASCADE, related_name="saved_videos"

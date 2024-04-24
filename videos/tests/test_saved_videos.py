@@ -313,7 +313,11 @@ class TestListSavedVideos:
     ):
         authenticate(user=user)
         profile = baker.make(settings.PROFILE_MODEL, user=user)
-        saved_videos = [baker.make(SavedVideo, profile=profile) for i in range(3)]
+        saved_video1 = baker.make(SavedVideo, profile=profile)
+        sleep(0.01)
+        saved_video2 = baker.make(SavedVideo, profile=profile)
+        sleep(0.01)
+        saved_video3 = baker.make(SavedVideo, profile=profile)
 
         response1 = list_saved_videos(
             pagination=pagination(type="limit_offset", limit=2)
@@ -326,13 +330,13 @@ class TestListSavedVideos:
         assert response1.data["previous"] is None
         assert response1.data["next"] is not None
         assert len(response1.data["results"]) == 2
-        assert response1.data["results"][0]["id"] == saved_videos[0].id
-        assert response1.data["results"][1]["id"] == saved_videos[1].id
+        assert response1.data["results"][0]["id"] == saved_video3.id
+        assert response1.data["results"][1]["id"] == saved_video2.id
         assert response2.data["count"] == 3
         assert response2.data["previous"] is not None
         assert response2.data["next"] is None
         assert len(response2.data["results"]) == 1
-        assert response2.data["results"][0]["id"] == saved_videos[2].id
+        assert response2.data["results"][0]["id"] == saved_video1.id
 
 
 @pytest.mark.django_db
