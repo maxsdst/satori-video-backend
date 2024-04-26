@@ -1,11 +1,12 @@
 from pathlib import Path
+from time import sleep
 
 import pytest
 from django.urls import reverse
 from model_bakery import baker
 from rest_framework import status
 
-from profiles.models import Profile
+from profiles.models import Follow, Profile
 
 
 DETAIL_VIEWNAME = "profiles:profiles-detail"
@@ -45,50 +46,94 @@ def delete_profile(delete_object):
 
 @pytest.fixture
 def list_profiles(api_client):
-    def do_list_profiles():
+    def _list_profiles():
         return api_client.get(reverse("profiles:api-root") + "profiles/")
 
-    return do_list_profiles
+    return _list_profiles
 
 
 @pytest.fixture
 def retrieve_own_profile(api_client):
-    def do_retrieve_own_profile():
+    def _retrieve_own_profile():
         return api_client.get(reverse("profiles:profiles-me"))
 
-    return do_retrieve_own_profile
+    return _retrieve_own_profile
 
 
 @pytest.fixture
 def update_own_profile(api_client):
-    def do_update_own_profile(profile, format="multipart"):
+    def _update_own_profile(profile, format="multipart"):
         return api_client.patch(reverse("profiles:profiles-me"), profile, format=format)
 
-    return do_update_own_profile
+    return _update_own_profile
 
 
 @pytest.fixture
 def retrieve_profile_by_username(api_client):
-    def do_retrieve_profile_by_username(username):
+    def _retrieve_profile_by_username(username):
         return api_client.get(
             reverse(
                 "profiles:profiles-retrieve-by-username", kwargs={"username": username}
             )
         )
 
-    return do_retrieve_profile_by_username
+    return _retrieve_profile_by_username
 
 
 @pytest.fixture
-def search(list_objects, filter):
+def search(list_objects):
     def _search(query: str, pagination=None):
         return list_objects(
             "profiles:profiles-search",
-            filters=[filter(field="query", lookup_type="exact", value=query)],
+            {"query": query},
             pagination=pagination,
         )
 
     return _search
+
+
+@pytest.fixture
+def follow(api_client):
+    def _follow(username):
+        return api_client.post(
+            reverse("profiles:profiles-follow", kwargs={"username": username})
+        )
+
+    return _follow
+
+
+@pytest.fixture
+def unfollow(api_client):
+    def _unfollow(username):
+        return api_client.post(
+            reverse("profiles:profiles-unfollow", kwargs={"username": username})
+        )
+
+    return _unfollow
+
+
+@pytest.fixture
+def following(list_objects):
+    def _following(username, *, pagination=None):
+        return list_objects(
+            "profiles:profiles-following",
+            reverse_kwargs={"username": username},
+            pagination=pagination,
+        )
+
+    return _following
+
+
+@pytest.fixture
+def followers(list_objects):
+    def _followers(username, *, pagination=None):
+        return list_objects(
+            "profiles:profiles-followers",
+            reverse_kwargs={"username": username},
+            pagination=pagination,
+        )
+
+    return _followers
 
 
 @pytest.mark.django_db
@@ -404,3 +449,278 @@ class TestSearch:
         assert response2.data["next"] is None
         assert len(response2.data["results"]) == 1
         assert response2.data["results"][0]["id"] == profiles[2].id
+
+
+@pytest.mark.django_db
+class TestFollow:
+    def test_if_user_is_anonymous_returns_401(self, follow):
+        response = follow("a")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_if_profile_doesnt_exist_returns_404(self, authenticate, user, follow):
+        authenticate(user=user)
+        baker.make(Profile, user=user)
+
+        response = follow("a")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_cannot_follow_own_profile(self, authenticate, user, follow):
+        authenticate(user=user)
+        profile = baker.make(Profile, user=user)
+
+        response = follow(profile.user.username)
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.data["detail"] is not None
+
+    def test_creates_follow(self, authenticate, user, follow):
+        authenticate(user=user)
+        own_profile = baker.make(Profile, user=user)
+        profile = baker.make(Profile)
+        initial_count = Follow.objects.filter(
+            follower=own_profile, followed=profile
+        ).count()
+
+        response = follow(profile.user.username)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert initial_count == 0
+        assert (
+            Follow.objects.filter(follower=own_profile, followed=profile).count() == 1
+        )
+
+    def test_cannot_follow_profile_multiple_times(self, authenticate, user, follow):
+        authenticate(user=user)
+        baker.make(Profile, user=user)
+        profile = baker.make(Profile)
+
+        response1 = follow(profile.user.username)
+        response2 = follow(profile.user.username)
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_400_BAD_REQUEST
+        assert response2.data["detail"] is not None
+
+
+@pytest.mark.django_db
+class TestUnfollow:
+    def test_if_user_is_anonymous_returns_401(self, unfollow):
+        response = unfollow("a")
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_if_profile_doesnt_exist_returns_404(self, authenticate, user, unfollow):
+        authenticate(user=user)
+        baker.make(Profile, user=user)
+
+        response = unfollow("a")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_if_follow_doesnt_exist_returns_200(self, authenticate, user, unfollow):
+        authenticate(user=user)
+        baker.make(Profile, user=user)
+        profile = baker.make(Profile)
+
+        response = unfollow(profile.user.username)
+
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_deletes_follow(self, authenticate, user, unfollow):
+        authenticate(user=user)
+        own_profile = baker.make(Profile, user=user)
+        profile = baker.make(Profile)
+        baker.make(Follow, follower=own_profile, followed=profile)
+        initial_count = Follow.objects.filter(
+            follower=own_profile, followed=profile
+        ).count()
+
+        response = unfollow(profile.user.username)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert initial_count == 1
+        assert (
+            Follow.objects.filter(follower=own_profile, followed=profile).count() == 0
+        )
+
+
+@pytest.mark.django_db
+class TestFollowing:
+    def test_if_profile_doesnt_exist_returns_404(self, authenticate, user, following):
+        authenticate(user=user)
+        baker.make(Profile, user=user)
+
+        response = following("a")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_returns_profiles(self, following):
+        profile = baker.make(Profile)
+        other_profile = baker.make(Profile)
+        baker.make(Follow, follower=profile, followed=other_profile)
+
+        response = following(profile.user.username)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0] == {
+            "id": other_profile.id,
+            "user": {
+                "id": other_profile.user.id,
+                "username": other_profile.user.username,
+            },
+            "full_name": other_profile.full_name,
+            "description": other_profile.description,
+            "avatar": other_profile.avatar.url if other_profile.avatar else None,
+        }
+
+    def test_returns_only_followed_profiles(self, following):
+        profile = baker.make(Profile)
+        other_profile1 = baker.make(Profile)
+        other_profile2 = baker.make(Profile)
+        other_profile3 = baker.make(Profile)
+        other_profile4 = baker.make(Profile)
+        baker.make(Follow, follower=profile, followed=other_profile2)
+        baker.make(Follow, follower=profile, followed=other_profile3)
+
+        response = following(profile.user.username)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 2
+        assert set([x["id"] for x in response.data["results"]]) == set(
+            [other_profile2.id, other_profile3.id]
+        )
+
+    def test_profiles_ordered_by_follow_date(self, following):
+        profile = baker.make(Profile)
+        other_profile1 = baker.make(Profile)
+        other_profile2 = baker.make(Profile)
+        other_profile3 = baker.make(Profile)
+        baker.make(Follow, follower=profile, followed=other_profile2)
+        sleep(0.01)
+        baker.make(Follow, follower=profile, followed=other_profile3)
+        sleep(0.01)
+        baker.make(Follow, follower=profile, followed=other_profile1)
+
+        response = following(profile.user.username)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["results"][0]["id"] == other_profile1.id
+        assert response.data["results"][1]["id"] == other_profile3.id
+        assert response.data["results"][2]["id"] == other_profile2.id
+
+    def test_cursor_pagination(self, following, pagination, api_client):
+        profile = baker.make(Profile)
+        other_profiles = baker.make(Profile, _quantity=3)
+        for other_profile in other_profiles:
+            sleep(0.01)
+            baker.make(Follow, follower=profile, followed=other_profile)
+
+        response1 = following(
+            profile.user.username, pagination=pagination(type="cursor", page_size=2)
+        )
+        response2 = api_client.get(response1.data["next"])
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_200_OK
+        assert response1.data["previous"] is None
+        assert response1.data["next"] is not None
+        assert len(response1.data["results"]) == 2
+        assert response1.data["results"][0]["id"] == other_profiles[2].id
+        assert response1.data["results"][1]["id"] == other_profiles[1].id
+        assert response2.data["previous"] is not None
+        assert response2.data["next"] is None
+        assert len(response2.data["results"]) == 1
+        assert response2.data["results"][0]["id"] == other_profiles[0].id
+
+
+@pytest.mark.django_db
+class TestFollowers:
+    def test_if_profile_doesnt_exist_returns_404(self, authenticate, user, followers):
+        authenticate(user=user)
+        baker.make(Profile, user=user)
+
+        response = followers("a")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_returns_profiles(self, followers):
+        profile = baker.make(Profile)
+        other_profile = baker.make(Profile)
+        baker.make(Follow, follower=other_profile, followed=profile)
+
+        response = followers(profile.user.username)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0] == {
+            "id": other_profile.id,
+            "user": {
+                "id": other_profile.user.id,
+                "username": other_profile.user.username,
+            },
+            "full_name": other_profile.full_name,
+            "description": other_profile.description,
+            "avatar": other_profile.avatar.url if other_profile.avatar else None,
+        }
+
+    def test_returns_only_followers(self, followers):
+        profile = baker.make(Profile)
+        other_profile1 = baker.make(Profile)
+        other_profile2 = baker.make(Profile)
+        other_profile3 = baker.make(Profile)
+        other_profile4 = baker.make(Profile)
+        baker.make(Follow, follower=other_profile2, followed=profile)
+        baker.make(Follow, follower=other_profile3, followed=profile)
+
+        response = followers(profile.user.username)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 2
+        assert set([x["id"] for x in response.data["results"]]) == set(
+            [other_profile2.id, other_profile3.id]
+        )
+
+    def test_profiles_ordered_by_follow_date(self, followers):
+        profile = baker.make(Profile)
+        other_profile1 = baker.make(Profile)
+        other_profile2 = baker.make(Profile)
+        other_profile3 = baker.make(Profile)
+        baker.make(Follow, follower=other_profile2, followed=profile)
+        sleep(0.01)
+        baker.make(Follow, follower=other_profile3, followed=profile)
+        sleep(0.01)
+        baker.make(Follow, follower=other_profile1, followed=profile)
+
+        response = followers(profile.user.username)
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["results"][0]["id"] == other_profile1.id
+        assert response.data["results"][1]["id"] == other_profile3.id
+        assert response.data["results"][2]["id"] == other_profile2.id
+
+    def test_cursor_pagination(self, followers, pagination, api_client):
+        profile = baker.make(Profile)
+        other_profiles = baker.make(Profile, _quantity=3)
+        for other_profile in other_profiles:
+            sleep(0.01)
+            baker.make(Follow, follower=other_profile, followed=profile)
+
+        response1 = followers(
+            profile.user.username, pagination=pagination(type="cursor", page_size=2)
+        )
+        response2 = api_client.get(response1.data["next"])
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_200_OK
+        assert response1.data["previous"] is None
+        assert response1.data["next"] is not None
+        assert len(response1.data["results"]) == 2
+        assert response1.data["results"][0]["id"] == other_profiles[2].id
+        assert response1.data["results"][1]["id"] == other_profiles[1].id
+        assert response2.data["previous"] is not None
+        assert response2.data["next"] is None
+        assert len(response2.data["results"]) == 1
+        assert response2.data["results"][0]["id"] == other_profiles[0].id

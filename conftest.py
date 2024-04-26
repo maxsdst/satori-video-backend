@@ -266,13 +266,24 @@ def delete_object(api_client):
 @pytest.fixture
 def list_objects(api_client):
     def _list_objects(
-        viewname, query=None, *, filters=None, ordering=None, pagination=None, **kwargs
+        viewname,
+        query=None,
+        *,
+        reverse_kwargs=None,
+        filters=None,
+        ordering=None,
+        pagination=None,
+        **kwargs,
     ):
         full_query = {
             **build_query(filters=filters, ordering=ordering, pagination=pagination),
             **(query if query is not None else {}),
         }
-        return api_client.get(reverse(viewname), full_query, **kwargs)
+        return api_client.get(
+            reverse(viewname, kwargs=reverse_kwargs),
+            full_query,
+            **kwargs,
+        )
 
     return _list_objects
 
