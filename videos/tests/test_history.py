@@ -187,6 +187,9 @@ class TestGroupedByDate:
                             "full_name": entry.video.profile.full_name,
                             "description": entry.video.profile.description,
                             "avatar": entry.video.profile.avatar,
+                            "following_count": 0,
+                            "follower_count": 0,
+                            "is_following": False,
                         },
                         "upload_date": isoformat(
                             entry.video.upload_date.astimezone(tzinfo)

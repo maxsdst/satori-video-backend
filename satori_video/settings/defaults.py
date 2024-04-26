@@ -190,6 +190,7 @@ INTERNAL_IPS = [
 
 PROFILE_MODEL = "profiles.Profile"
 PROFILE_SERIALIZER = "profiles.serializers.ProfileSerializer"
+PROFILE_QUERYSET_FACTORY = "profiles.views.get_profile_queryset"
 
 GORSE_ENTRY_POINT = "http://127.0.0.1:8087"
 GORSE_API_KEY = ""

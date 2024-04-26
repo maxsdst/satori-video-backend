@@ -163,7 +163,51 @@ class TestRetrieveProfile:
             "full_name": profile.full_name,
             "description": profile.description,
             "avatar": profile.avatar,
+            "following_count": 0,
+            "follower_count": 0,
+            "is_following": False,
         }
+
+    def test_following_count(self, retrieve_profile):
+        profile1 = baker.make(Profile)
+        profile2 = baker.make(Profile)
+        baker.make(Follow, follower=profile2)
+
+        response1 = retrieve_profile(profile1.id)
+        response2 = retrieve_profile(profile2.id)
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_200_OK
+        assert response1.data["following_count"] == 0
+        assert response2.data["following_count"] == 1
+
+    def test_follower_count(self, retrieve_profile):
+        profile1 = baker.make(Profile)
+        profile2 = baker.make(Profile)
+        baker.make(Follow, followed=profile2)
+
+        response1 = retrieve_profile(profile1.id)
+        response2 = retrieve_profile(profile2.id)
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_200_OK
+        assert response1.data["follower_count"] == 0
+        assert response2.data["follower_count"] == 1
+
+    def test_following_status(self, authenticate, user, retrieve_profile):
+        authenticate(user=user)
+        own_profile = baker.make(Profile, user=user)
+        profile1 = baker.make(Profile)
+        profile2 = baker.make(Profile)
+        baker.make(Follow, follower=own_profile, followed=profile2)
+
+        response1 = retrieve_profile(profile1.id)
+        response2 = retrieve_profile(profile2.id)
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_200_OK
+        assert response1.data["is_following"] == False
+        assert response2.data["is_following"] == True
 
 
 @pytest.mark.django_db
@@ -221,6 +265,9 @@ class TestRetrieveOwnProfile:
             "full_name": profile.full_name,
             "description": profile.description,
             "avatar": profile.avatar,
+            "following_count": 0,
+            "follower_count": 0,
+            "is_following": False,
         }
 
 
@@ -255,6 +302,9 @@ class TestUpdateOwnProfile:
             "full_name": profile.full_name,
             "description": profile.description,
             "avatar": profile.avatar,
+            "following_count": 0,
+            "follower_count": 0,
+            "is_following": False,
         }
 
     def test_if_data_is_invalid_returns_400(
@@ -301,6 +351,9 @@ class TestUpdateOwnProfile:
             "full_name": new_full_name,
             "description": new_description,
             "avatar": response.data["avatar"],
+            "following_count": 0,
+            "follower_count": 0,
+            "is_following": False,
         }
         assert is_valid_image(response.data["avatar"])
 
@@ -359,6 +412,9 @@ class TestRetrieveProfileByUsername:
             "full_name": profile.full_name,
             "description": profile.description,
             "avatar": profile.avatar,
+            "following_count": 0,
+            "follower_count": 0,
+            "is_following": False,
         }
 
 
@@ -384,6 +440,9 @@ class TestSearch:
             "full_name": profile.full_name,
             "description": profile.description,
             "avatar": profile.avatar.url if profile.avatar else None,
+            "following_count": 0,
+            "follower_count": 0,
+            "is_following": False,
         }
 
     def test_filters_profiles(self, search):
@@ -574,6 +633,9 @@ class TestFollowing:
             "full_name": other_profile.full_name,
             "description": other_profile.description,
             "avatar": other_profile.avatar.url if other_profile.avatar else None,
+            "following_count": 0,
+            "follower_count": 1,
+            "is_following": False,
         }
 
     def test_returns_only_followed_profiles(self, following):
@@ -664,6 +726,9 @@ class TestFollowers:
             "full_name": other_profile.full_name,
             "description": other_profile.description,
             "avatar": other_profile.avatar.url if other_profile.avatar else None,
+            "following_count": 1,
+            "follower_count": 0,
+            "is_following": False,
         }
 
     def test_returns_only_followers(self, followers):

@@ -26,9 +26,28 @@ class UserSerializer(serializers.ModelSerializer):
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
-        fields = ["id", "user", "full_name", "description", "avatar"]
+        fields = [
+            "id",
+            "user",
+            "full_name",
+            "description",
+            "avatar",
+            "following_count",
+            "follower_count",
+            "is_following",
+        ]
+        read_only_fields = [
+            "id",
+            "user",
+            "following_count",
+            "follower_count",
+            "is_following",
+        ]
 
     user = UserSerializer(read_only=True)
+    following_count = serializers.IntegerField()
+    follower_count = serializers.IntegerField()
+    is_following = serializers.BooleanField()
 
     def update(self, instance, validated_data):
         if "avatar" in validated_data:

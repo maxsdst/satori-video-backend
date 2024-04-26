@@ -1,5 +1,10 @@
 from django.contrib.auth import get_user_model
-from django.db import IntegrityError
+from django.contrib.auth.models import AbstractUser
+from django.db import IntegrityError, transaction
+from django.db.models import Model, Prefetch, QuerySet
+from django.db.models.aggregates import Count
+from django.db.models.expressions import Case, OuterRef, Subquery, Value, When
+from django.db.models.manager import BaseManager
 from django.db.models.query import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -21,20 +26,67 @@ from .utils import normalize_search_query
 USER_MODEL = get_user_model()
 
 
+def get_profile_queryset(request: Request) -> BaseManager[Profile]:
+    queryset = (
+        Profile.objects.select_related("user")
+        .annotate(
+            following_count=count_related_objects_in_subquery(Profile, "following")
+        )
+        .annotate(
+            follower_count=count_related_objects_in_subquery(Profile, "followers")
+        )
+    )
+    queryset = annotate_profiles_with_following_status(queryset, request.user)
+    return queryset
+
+
+def count_related_objects_in_subquery(model: Model, related_name: str) -> Subquery:
+    """Generate a subquery to count related objects for each instance of the given model."""
+
+    return Subquery(
+        model.objects.filter(pk=OuterRef("pk"))
+        .annotate(count=Count(related_name, distinct=True))
+        .values("count")
+    )
+
+
+def annotate_profiles_with_following_status(
+    queryset: QuerySet, user: AbstractUser
+) -> QuerySet:
+    """Annotate the given profile queryset with a field indicating whether the user is following each profile."""
+
+    if not user.is_authenticated:
+        return queryset.annotate(is_following=Value(False))
+
+    following_ids = user.profile.following.values_list("followed_id")
+
+    return queryset.annotate(
+        is_following=Case(
+            When(id__in=following_ids, then=Value(True)),
+            default=Value(False),
+        )
+    )
+
+
 class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
     http_method_names = ["get", "post", "patch", "head", "options"]
-    queryset = Profile.objects.select_related("user").all()
     serializer_class = ProfileSerializer
     pagination_class = ProfilePagination
 
+    def get_queryset(self):
+        return get_profile_queryset(self.request)
+
+    @transaction.atomic()
     @action(
         detail=False, methods=["GET", "PATCH"], permission_classes=[IsAuthenticated]
     )
     def me(self, request: Request):
         try:
-            profile = request.user.profile
+            profile_id = request.user.profile.id
         except USER_MODEL.profile.RelatedObjectDoesNotExist:
             raise Http404("User has no profile")
+
+        profile = self.get_queryset().get(pk=profile_id)
 
         if request.method == "GET":
             serializer = ProfileSerializer(profile, context={"request": self.request})
@@ -56,9 +108,7 @@ class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
         url_path="retrieve_by_username/(?P<username>.+)",
     )
     def retrieve_by_username(self, request: Request, username: str):
-        profile = get_object_or_404(
-            Profile.objects.select_related("user"), user__username=username
-        )
+        profile = get_object_or_404(self.get_queryset(), user__username=username)
         serializer = ProfileSerializer(profile, context={"request": self.request})
         return Response(serializer.data)
 
@@ -116,7 +166,9 @@ class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
     @action(detail=False, methods=["GET"], url_path="following/(?P<username>.+)")
     def following(self, request: Request, username: str):
         profile = get_object_or_404(Profile, user__username=username)
-        follows = Follow.objects.filter(follower=profile)
+        follows = Follow.objects.prefetch_related(
+            Prefetch("followed", get_profile_queryset(self.request))
+        ).filter(follower=profile)
 
         pagination = FollowPagination()
         follows = pagination.paginate_queryset(follows, self.request, view=self)
@@ -129,7 +181,9 @@ class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
     @action(detail=False, methods=["GET"], url_path="followers/(?P<username>.+)")
     def followers(self, request: Request, username: str):
         profile = get_object_or_404(Profile, user__username=username)
-        follows = Follow.objects.filter(followed=profile)
+        follows = Follow.objects.prefetch_related(
+            Prefetch("follower", get_profile_queryset(self.request))
+        ).filter(followed=profile)
 
         pagination = FollowPagination()
         follows = pagination.paginate_queryset(follows, self.request, view=self)

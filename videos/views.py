@@ -1,6 +1,7 @@
 from datetime import timedelta
 from zoneinfo import ZoneInfoNotFoundError
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import IntegrityError, transaction
@@ -17,6 +18,7 @@ from django.db.models import (
 from django.db.models.aggregates import Count
 from django.db.models.manager import BaseManager
 from django.utils import timezone
+from django.utils.module_loading import import_string
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.decorators import action
@@ -72,9 +74,14 @@ from .tasks import handle_upload
 from .utils import get_objects_by_primary_keys, has_any_filter_applied
 
 
+PROFILE_QUERYSET_FACTORY = import_string(settings.PROFILE_QUERYSET_FACTORY)
+
+
 def get_video_queryset(request: Request) -> BaseManager[Video]:
     queryset = (
-        Video.objects.select_related("profile__user")
+        Video.objects.prefetch_related(
+            Prefetch("profile", PROFILE_QUERYSET_FACTORY(request))
+        )
         .annotate(view_count=count_related_objects_in_subquery(Video, "views"))
         .annotate(like_count=count_related_objects_in_subquery(Video, "likes"))
         .annotate(comment_count=count_related_objects_in_subquery(Video, "comments"))
@@ -438,7 +445,9 @@ class LikeViewSet(ModelViewSet):
 
     def get_queryset(self):
         return (
-            Like.objects.select_related("profile__user")
+            Like.objects.prefetch_related(
+                Prefetch("profile", PROFILE_QUERYSET_FACTORY(self.request))
+            )
             .prefetch_related(Prefetch("video", get_video_queryset(self.request)))
             .all()
         )
@@ -512,7 +521,9 @@ class CommentViewSet(ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            Comment.objects.select_related("profile__user")
+            Comment.objects.prefetch_related(
+                Prefetch("profile", PROFILE_QUERYSET_FACTORY(self.request))
+            )
             .annotate(reply_count=count_related_objects_in_subquery(Comment, "replies"))
             .annotate(like_count=count_related_objects_in_subquery(Comment, "likes"))
         )
