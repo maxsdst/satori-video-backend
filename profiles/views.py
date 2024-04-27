@@ -18,7 +18,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from .models import Follow, Profile
-from .pagination import FollowPagination, ProfilePagination
+from .pagination import FollowPagination, ProfileSearchPagination
 from .serializers import ProfileSerializer
 from .utils import normalize_search_query
 
@@ -71,7 +71,6 @@ def annotate_profiles_with_following_status(
 class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
     http_method_names = ["get", "post", "patch", "head", "options"]
     serializer_class = ProfileSerializer
-    pagination_class = ProfilePagination
 
     def get_queryset(self):
         return get_profile_queryset(self.request)
@@ -120,14 +119,19 @@ class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
 
         normalized_query = normalize_search_query(query)
 
-        profiles = self.get_queryset().filter(
-            Q(user__username__icontains=normalized_query)
-            | Q(full_name__icontains=normalized_query)
+        profiles = (
+            self.get_queryset()
+            .filter(
+                Q(user__username__icontains=normalized_query)
+                | Q(full_name__icontains=normalized_query)
+            )
+            .order_by("-follower_count")
         )
 
-        page = self.paginate_queryset(profiles)
+        pagination = ProfileSearchPagination()
+        page = pagination.paginate_queryset(profiles, self.request, self)
         serializer = self.get_serializer(page, many=True)
-        return self.get_paginated_response(serializer.data)
+        return pagination.get_paginated_response(serializer.data)
 
     @action(
         detail=False,

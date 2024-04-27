@@ -509,6 +509,21 @@ class TestSearch:
         assert len(response2.data["results"]) == 1
         assert response2.data["results"][0]["id"] == profiles[2].id
 
+    def test_profiles_ordered_by_follower_count(self, search):
+        profile1 = baker.make(Profile, full_name="test")
+        profile2 = baker.make(Profile, full_name="test")
+        baker.make(Follow, followed=profile2, _quantity=5, _bulk_create=True)
+        profile3 = baker.make(Profile, full_name="test")
+        baker.make(Follow, followed=profile3, _quantity=3, _bulk_create=True)
+
+        response = search("test")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 3
+        assert response.data["results"][0]["id"] == profile2.id
+        assert response.data["results"][1]["id"] == profile3.id
+        assert response.data["results"][2]["id"] == profile1.id
+
 
 @pytest.mark.django_db
 class TestFollow:

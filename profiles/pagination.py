@@ -1,10 +1,10 @@
 from rest_framework.pagination import CursorPagination
 
+from custompagination.pagination import SnapshotPagination
 
-class ProfilePagination(CursorPagination):
-    page_size_query_param = "page_size"
+
+class ProfileSearchPagination(SnapshotPagination):
     max_page_size = 50
-    ordering = "id"
 
 
 class FollowPagination(CursorPagination):
