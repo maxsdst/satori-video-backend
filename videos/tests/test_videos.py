@@ -92,6 +92,14 @@ def search(list_objects, filter):
     return _search
 
 
+@pytest.fixture
+def following(list_objects):
+    def _following(*, pagination=None):
+        return list_objects("videos:videos-following", pagination=pagination)
+
+    return _following
+
+
 @pytest.mark.django_db
 class TestCreateVideo:
     def test_returns_405(self, create_video):
@@ -918,3 +926,124 @@ class TestSearch:
         assert response2.data["next"] is None
         assert len(response2.data["results"]) == 1
         assert response2.data["results"][0]["id"] == videos[2].id
+
+
+@pytest.mark.django_db
+class TestFollowing:
+    def test_if_user_is_anonymous_returns_401(self, following):
+        response = following()
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_returns_videos(self, authenticate, user, following, isoformat):
+        authenticate(user=user)
+        own_profile = baker.make(settings.PROFILE_MODEL, user=user)
+        profile = baker.make(settings.PROFILE_MODEL)
+        baker.make(settings.FOLLOW_MODEL, follower=own_profile, followed=profile)
+        video = baker.make(Video, profile=profile)
+
+        response = following()
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 1
+        assert response.data["results"][0] == {
+            "id": video.id,
+            "profile": {
+                "id": video.profile.id,
+                "user": {
+                    "id": video.profile.user.id,
+                    "username": video.profile.user.username,
+                },
+                "full_name": video.profile.full_name,
+                "description": video.profile.description,
+                "avatar": video.profile.avatar,
+                "following_count": 0,
+                "follower_count": 1,
+                "is_following": True,
+            },
+            "upload_date": isoformat(video.upload_date),
+            "title": video.title,
+            "description": video.description,
+            "source": video.source.url if video.source else None,
+            "thumbnail": video.thumbnail.url if video.thumbnail else None,
+            "first_frame": video.first_frame.url if video.first_frame else None,
+            "view_count": 0,
+            "like_count": 0,
+            "is_liked": False,
+            "comment_count": 0,
+            "is_saved": False,
+        }
+
+    def test_returns_videos_only_from_followed_profiles(
+        self, authenticate, user, following
+    ):
+        authenticate(user=user)
+        own_profile = baker.make(settings.PROFILE_MODEL, user=user)
+        profile1 = baker.make(settings.PROFILE_MODEL)
+        profile2 = baker.make(settings.PROFILE_MODEL)
+        profile3 = baker.make(settings.PROFILE_MODEL)
+        profile4 = baker.make(settings.PROFILE_MODEL)
+        baker.make(settings.FOLLOW_MODEL, follower=own_profile, followed=profile2)
+        baker.make(settings.FOLLOW_MODEL, follower=own_profile, followed=profile3)
+        video1 = baker.make(Video, profile=profile1)
+        video2 = baker.make(Video, profile=profile2)
+        video3 = baker.make(Video, profile=profile2)
+        video4 = baker.make(Video, profile=profile3)
+        video5 = baker.make(Video, profile=profile4)
+
+        response = following()
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.data["results"]) == 3
+        assert set([x["id"] for x in response.data["results"]]) == set(
+            [video2.id, video3.id, video4.id]
+        )
+
+    def test_videos_ordered_by_upload_date(
+        self, authenticate, user, mock_current_datetime, following
+    ):
+        authenticate(user=user)
+        own_profile = baker.make(settings.PROFILE_MODEL, user=user)
+        profile = baker.make(settings.PROFILE_MODEL)
+        baker.make(settings.FOLLOW_MODEL, follower=own_profile, followed=profile)
+        with mock_current_datetime(timezone.datetime(2024, 1, 1)):
+            video1 = baker.make(Video, profile=profile)
+        with mock_current_datetime(timezone.datetime(2024, 1, 3)):
+            video2 = baker.make(Video, profile=profile)
+        with mock_current_datetime(timezone.datetime(2024, 1, 2)):
+            video3 = baker.make(Video, profile=profile)
+
+        response = following()
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["results"][0]["id"] == video2.id
+        assert response.data["results"][1]["id"] == video3.id
+        assert response.data["results"][2]["id"] == video1.id
+
+    def test_cursor_pagination(
+        self, authenticate, user, following, pagination, api_client
+    ):
+        authenticate(user=user)
+        own_profile = baker.make(settings.PROFILE_MODEL, user=user)
+        profile = baker.make(settings.PROFILE_MODEL)
+        baker.make(settings.FOLLOW_MODEL, follower=own_profile, followed=profile)
+        video1 = baker.make(Video, profile=profile)
+        sleep(0.01)
+        video2 = baker.make(Video, profile=profile)
+        sleep(0.01)
+        video3 = baker.make(Video, profile=profile)
+
+        response1 = following(pagination=pagination(type="cursor", page_size=2))
+        response2 = api_client.get(response1.data["next"])
+
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_200_OK
+        assert response1.data["previous"] is None
+        assert response1.data["next"] is not None
+        assert len(response1.data["results"]) == 2
+        assert response1.data["results"][0]["id"] == video3.id
+        assert response1.data["results"][1]["id"] == video2.id
+        assert response2.data["previous"] is not None
+        assert response2.data["next"] is None
+        assert len(response2.data["results"]) == 1
+        assert response2.data["results"][0]["id"] == video1.id

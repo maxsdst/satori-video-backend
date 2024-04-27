@@ -46,6 +46,7 @@ from .models import (
 from .pagination import (
     CommentPagination,
     HistoryPagination,
+    VideoCursorPagination,
     VideoRecommendationPaginator,
     VideoSearchPagination,
 )
@@ -249,6 +250,23 @@ class VideoViewSet(ModelViewSet):
         pagination = VideoSearchPagination()
         page = pagination.paginate_queryset(videos, request)
         serializer = self.get_serializer(page, many=True)
+        return pagination.get_paginated_response(serializer.data)
+
+    @action(detail=False, methods=["GET"], permission_classes=[IsAuthenticated])
+    def following(self, request: Request):
+        profile = request.user.profile
+
+        following_ids = profile.following.values_list("followed_id")
+        videos = (
+            self.get_queryset()
+            .filter(profile_id__in=following_ids)
+            .order_by("-upload_date")
+        )
+
+        pagination = VideoCursorPagination()
+        videos = pagination.paginate_queryset(videos, self.request, view=self)
+
+        serializer = self.get_serializer(videos, many=True)
         return pagination.get_paginated_response(serializer.data)
 
 
