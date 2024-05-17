@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "core",
     "profiles",
     "videos",
+    "notifications",
     "custompagination",
     "custompagination.tests",
 ]
@@ -182,6 +183,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "videos.tasks.sync_recommender_system_data",
         "schedule": 60 * 60,
     },
+    "cleanup_seen_notifications": {
+        "task": "notifications.tasks.cleanup_seen_notifications",
+        "schedule": 60 * 60,
+    },
 }
 
 INTERNAL_IPS = [
@@ -192,6 +197,8 @@ PROFILE_MODEL = "profiles.Profile"
 PROFILE_SERIALIZER = "profiles.serializers.ProfileSerializer"
 PROFILE_QUERYSET_FACTORY = "profiles.views.get_profile_queryset"
 FOLLOW_MODEL = "profiles.Follow"
+
+NOTIFICATION_MODEL_CONFIG = {}
 
 GORSE_ENTRY_POINT = "http://127.0.0.1:8087"
 GORSE_API_KEY = ""

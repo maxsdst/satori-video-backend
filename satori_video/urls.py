@@ -26,6 +26,7 @@ api_urlpatterns = [
     path("auth/", include("djoser.urls.jwt")),
     path("profiles/", include("profiles.urls", "profiles")),
     path("videos/", include("videos.urls", "videos")),
+    path("notifications/", include("notifications.urls", "notifications")),
 ]
 
 urlpatterns = [
