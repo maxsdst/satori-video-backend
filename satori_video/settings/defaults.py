@@ -198,7 +198,12 @@ PROFILE_SERIALIZER = "profiles.serializers.ProfileSerializer"
 PROFILE_QUERYSET_FACTORY = "profiles.views.get_profile_queryset"
 FOLLOW_MODEL = "profiles.Follow"
 
-NOTIFICATION_MODEL_CONFIG = {}
+NOTIFICATION_MODEL_CONFIG = {
+    "profiles.models.ProfileNotification": {
+        "queryset_factory": "profiles.querysets.get_profilenotification_queryset",
+        "serializer": "profiles.serializers.ProfileNotificationSerializer",
+    },
+}
 
 GORSE_ENTRY_POINT = "http://127.0.0.1:8087"
 GORSE_API_KEY = ""

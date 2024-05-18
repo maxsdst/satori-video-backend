@@ -4,8 +4,10 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from notifications.serializers import NotificationSerializer
+
 from .constants import AVATAR_FILENAME_LENGTH, AVATAR_IMAGE_QUALITY
-from .models import Profile
+from .models import Profile, ProfileNotification
 from .utils import convert_image_to_jpg, get_available_random_filename
 
 
@@ -61,3 +63,14 @@ class ProfileSerializer(serializers.ModelSerializer):
             )
 
         return super().update(instance, validated_data)
+
+
+class ProfileNotificationSerializer(NotificationSerializer):
+    class Meta(NotificationSerializer.Meta):
+        model = ProfileNotification
+        fields = NotificationSerializer.Meta.fields + ["related_profile"]
+        read_only_fields = NotificationSerializer.Meta.read_only_fields + [
+            "related_profile"
+        ]
+
+    related_profile = ProfileSerializer()

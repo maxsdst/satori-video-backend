@@ -1,5 +1,7 @@
-from django.db import models
 from django.conf import settings
+from django.db import models, transaction
+
+from notifications.models import Notification
 
 
 class Profile(models.Model):
@@ -21,3 +23,19 @@ class Follow(models.Model):
         Profile, related_name="followers", on_delete=models.CASCADE
     )
     creation_date = models.DateTimeField(auto_now_add=True)
+
+    @transaction.atomic()
+    def save(self, *args, **kwargs):
+        return super().save(*args, **kwargs)
+
+
+class ProfileNotification(Notification):
+    class Type(models.TextChoices):
+        PROFILE = "profile"
+
+    class Subtype(models.TextChoices):
+        NEW_FOLLOWER = "new_follower"
+
+    type = models.CharField(max_length=50, choices=Type.choices, default=Type.PROFILE)
+    subtype = models.CharField(max_length=50, choices=Subtype.choices)
+    related_profile = models.ForeignKey(Profile, null=True, on_delete=models.CASCADE)

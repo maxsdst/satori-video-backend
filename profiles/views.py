@@ -1,10 +1,6 @@
 from django.contrib.auth import get_user_model
-from django.contrib.auth.models import AbstractUser
 from django.db import IntegrityError, transaction
-from django.db.models import Model, Prefetch, QuerySet
-from django.db.models.aggregates import Count
-from django.db.models.expressions import Case, OuterRef, Subquery, Value, When
-from django.db.models.manager import BaseManager
+from django.db.models import Prefetch
 from django.db.models.query import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404
@@ -19,53 +15,12 @@ from rest_framework.viewsets import GenericViewSet
 
 from .models import Follow, Profile
 from .pagination import FollowPagination, ProfileSearchPagination
+from .querysets import get_profile_queryset
 from .serializers import ProfileSerializer
 from .utils import normalize_search_query
 
 
 USER_MODEL = get_user_model()
-
-
-def get_profile_queryset(request: Request) -> BaseManager[Profile]:
-    queryset = (
-        Profile.objects.select_related("user")
-        .annotate(
-            following_count=count_related_objects_in_subquery(Profile, "following")
-        )
-        .annotate(
-            follower_count=count_related_objects_in_subquery(Profile, "followers")
-        )
-    )
-    queryset = annotate_profiles_with_following_status(queryset, request.user)
-    return queryset
-
-
-def count_related_objects_in_subquery(model: Model, related_name: str) -> Subquery:
-    """Generate a subquery to count related objects for each instance of the given model."""
-
-    return Subquery(
-        model.objects.filter(pk=OuterRef("pk"))
-        .annotate(count=Count(related_name, distinct=True))
-        .values("count")
-    )
-
-
-def annotate_profiles_with_following_status(
-    queryset: QuerySet, user: AbstractUser
-) -> QuerySet:
-    """Annotate the given profile queryset with a field indicating whether the user is following each profile."""
-
-    if not user.is_authenticated:
-        return queryset.annotate(is_following=Value(False))
-
-    following_ids = user.profile.following.values_list("followed_id")
-
-    return queryset.annotate(
-        is_following=Case(
-            When(id__in=following_ids, then=Value(True)),
-            default=Value(False),
-        )
-    )
 
 
 class ProfileViewSet(RetrieveModelMixin, GenericViewSet):
