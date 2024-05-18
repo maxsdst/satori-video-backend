@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models, transaction
 
+from notifications.models import Notification
+
 from .validators import (
     validate_video_duration,
     validate_video_extension,
@@ -46,6 +48,10 @@ class Upload(models.Model):
         Video, on_delete=models.CASCADE, null=True, related_name="+"
     )
     is_done = models.BooleanField(default=False)
+
+    @transaction.atomic()
+    def save(self, *args, **kwargs):
+        return super().save(*args, **kwargs)
 
 
 class View(models.Model):
@@ -192,3 +198,40 @@ class Event(models.Model):
     @transaction.atomic()
     def save(self, *args, **kwargs):
         return super().save(*args, **kwargs)
+
+
+class VideoNotification(Notification):
+    class Type(models.TextChoices):
+        VIDEO = "video"
+
+    class Subtype(models.TextChoices):
+        UPLOAD_PROCESSED = "upload_processed"
+        COMMENT = "comment"
+        FOLLOWED_PROFILE_VIDEO = "followed_profile_video"
+
+    type = models.CharField(max_length=50, choices=Type.choices, default=Type.VIDEO)
+    subtype = models.CharField(max_length=50, choices=Subtype.choices)
+    video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    comment = models.ForeignKey(Comment, null=True, on_delete=models.CASCADE)
+
+
+class CommentNotification(Notification):
+    class Type(models.TextChoices):
+        COMMENT = "comment"
+
+    class Subtype(models.TextChoices):
+        LIKE = "like"
+        REPLY = "reply"
+
+    type = models.CharField(max_length=50, choices=Type.choices, default=Type.COMMENT)
+    subtype = models.CharField(max_length=50, choices=Subtype.choices)
+    video = models.ForeignKey(Video, on_delete=models.CASCADE)
+    comment = models.ForeignKey(
+        Comment,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="notifications_comment",
+    )
+    reply = models.ForeignKey(
+        Comment, null=True, on_delete=models.CASCADE, related_name="notifications_reply"
+    )

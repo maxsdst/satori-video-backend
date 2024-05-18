@@ -203,6 +203,14 @@ NOTIFICATION_MODEL_CONFIG = {
         "queryset_factory": "profiles.querysets.get_profilenotification_queryset",
         "serializer": "profiles.serializers.ProfileNotificationSerializer",
     },
+    "videos.models.VideoNotification": {
+        "queryset_factory": "videos.querysets.get_videonotification_queryset",
+        "serializer": "videos.serializers.VideoNotificationSerializer",
+    },
+    "videos.models.CommentNotification": {
+        "queryset_factory": "videos.querysets.get_commentnotification_queryset",
+        "serializer": "videos.serializers.CommentNotificationSerializer",
+    },
 }
 
 GORSE_ENTRY_POINT = "http://127.0.0.1:8087"

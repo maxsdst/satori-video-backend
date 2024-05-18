@@ -3,9 +3,12 @@ from django.db import transaction
 from django.utils.module_loading import import_string
 from rest_framework import serializers
 
+from notifications.serializers import NotificationSerializer
+
 from .models import (
     Comment,
     CommentLike,
+    CommentNotification,
     CommentReport,
     Event,
     HistoryEntry,
@@ -14,6 +17,7 @@ from .models import (
     SavedVideo,
     Upload,
     Video,
+    VideoNotification,
     View,
 )
 from .signals import video_updated
@@ -282,3 +286,31 @@ class CreateEventSerializer(serializers.ModelSerializer):
         return Event.objects.create(
             **validated_data, profile_id=self.context["profile_id"]
         )
+
+
+class VideoNotificationSerializer(NotificationSerializer):
+    class Meta(NotificationSerializer.Meta):
+        model = VideoNotification
+        fields = NotificationSerializer.Meta.fields + ["video", "comment"]
+        read_only_fields = NotificationSerializer.Meta.read_only_fields + [
+            "video",
+            "comment",
+        ]
+
+    video = VideoSerializer()
+    comment = CommentSerializer()
+
+
+class CommentNotificationSerializer(NotificationSerializer):
+    class Meta(NotificationSerializer.Meta):
+        model = CommentNotification
+        fields = NotificationSerializer.Meta.fields + ["video", "comment", "reply"]
+        read_only_fields = NotificationSerializer.Meta.read_only_fields + [
+            "video",
+            "comment",
+            "reply",
+        ]
+
+    video = VideoSerializer()
+    comment = CommentSerializer()
+    reply = CommentSerializer()

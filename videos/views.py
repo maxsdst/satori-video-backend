@@ -2,21 +2,9 @@ from datetime import timedelta
 from zoneinfo import ZoneInfoNotFoundError
 
 from django.conf import settings
-from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
 from django.db import IntegrityError, transaction
-from django.db.models import (
-    Case,
-    Model,
-    OuterRef,
-    Prefetch,
-    QuerySet,
-    Subquery,
-    Value,
-    When,
-)
-from django.db.models.aggregates import Count
-from django.db.models.manager import BaseManager
+from django.db.models import Prefetch, Subquery
 from django.utils import timezone
 from django.utils.module_loading import import_string
 from django_filters.rest_framework import DjangoFilterBackend
@@ -33,16 +21,7 @@ from gorse_client import get_gorse_client
 
 from .constants import VIEW_COUNT_COOLDOWN_SECONDS
 from .filters import CommentFilter, VideoFilter
-from .models import (
-    Comment,
-    CommentLike,
-    HistoryEntry,
-    Like,
-    SavedVideo,
-    Upload,
-    Video,
-    View,
-)
+from .models import CommentLike, HistoryEntry, Like, SavedVideo, Upload, View
 from .pagination import (
     CommentPagination,
     HistoryPagination,
@@ -51,6 +30,7 @@ from .pagination import (
     VideoSearchPagination,
 )
 from .permissions import UserOwnsObjectOrReadOnly
+from .querysets import get_comment_queryset, get_video_queryset
 from .serializers import (
     CommentLikeSerializer,
     CommentSerializer,
@@ -76,88 +56,6 @@ from .utils import get_objects_by_primary_keys, has_any_filter_applied
 
 
 PROFILE_QUERYSET_FACTORY = import_string(settings.PROFILE_QUERYSET_FACTORY)
-
-
-def get_video_queryset(request: Request) -> BaseManager[Video]:
-    queryset = (
-        Video.objects.prefetch_related(
-            Prefetch("profile", PROFILE_QUERYSET_FACTORY(request))
-        )
-        .annotate(view_count=count_related_objects_in_subquery(Video, "views"))
-        .annotate(like_count=count_related_objects_in_subquery(Video, "likes"))
-        .annotate(comment_count=count_related_objects_in_subquery(Video, "comments"))
-    )
-    queryset = annotate_videos_with_like_status(queryset, request.user)
-    queryset = annotate_videos_with_saved_status(queryset, request.user)
-    return queryset
-
-
-def count_related_objects_in_subquery(model: Model, related_name: str) -> Subquery:
-    """Generate a subquery to count related objects for each instance of the given model."""
-
-    return Subquery(
-        model.objects.filter(pk=OuterRef("pk"))
-        .annotate(count=Count(related_name, distinct=True))
-        .values("count")
-    )
-
-
-def annotate_videos_with_like_status(
-    queryset: QuerySet, user: AbstractUser
-) -> QuerySet:
-    """Annotate the given video queryset with a field indicating whether the user has liked each video."""
-
-    if not user.is_authenticated:
-        return queryset.annotate(is_liked=Value(False))
-
-    liked_video_ids = Like.objects.filter(profile=user.profile).values_list("video_id")
-
-    return queryset.annotate(
-        is_liked=Case(
-            When(id__in=liked_video_ids, then=Value(True)),
-            default=Value(False),
-        )
-    )
-
-
-def annotate_videos_with_saved_status(
-    queryset: QuerySet, user: AbstractUser
-) -> QuerySet:
-    """Annotate the given video queryset with a field indicating whether the user has saved each video."""
-
-    if not user.is_authenticated:
-        return queryset.annotate(is_saved=Value(False))
-
-    saved_video_ids = SavedVideo.objects.filter(profile=user.profile).values_list(
-        "video_id"
-    )
-
-    return queryset.annotate(
-        is_saved=Case(
-            When(id__in=saved_video_ids, then=Value(True)),
-            default=Value(False),
-        )
-    )
-
-
-def annotate_comments_with_like_status(
-    queryset: QuerySet, user: AbstractUser
-) -> QuerySet:
-    """Annotate the given comment queryset with a field indicating whether the user has liked each comment."""
-
-    if not user.is_authenticated:
-        return queryset.annotate(is_liked=Value(False))
-
-    liked_comment_ids = CommentLike.objects.filter(profile=user.profile).values_list(
-        "comment_id"
-    )
-
-    return queryset.annotate(
-        is_liked=Case(
-            When(id__in=liked_comment_ids, then=Value(True)),
-            default=Value(False),
-        )
-    )
 
 
 class VideoViewSet(ModelViewSet):
@@ -538,14 +436,7 @@ class CommentViewSet(ModelViewSet):
         return {"request": self.request}
 
     def get_queryset(self):
-        queryset = (
-            Comment.objects.prefetch_related(
-                Prefetch("profile", PROFILE_QUERYSET_FACTORY(self.request))
-            )
-            .annotate(reply_count=count_related_objects_in_subquery(Comment, "replies"))
-            .annotate(like_count=count_related_objects_in_subquery(Comment, "likes"))
-        )
-        return annotate_comments_with_like_status(queryset, self.request.user)
+        return get_comment_queryset(self.request)
 
     def create(self, request: Request, *args, **kwargs):
         serializer = CreateCommentSerializer(
