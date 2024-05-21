@@ -208,7 +208,7 @@ class TestListLikes:
         )
 
         assert response1.status_code == status.HTTP_200_OK
-        assert response1.data["count"] == 1
+        assert len(response1.data["results"]) == 1
         assert response1.data["results"][0] == {
             "id": like.id,
             "profile": {
@@ -254,40 +254,61 @@ class TestListLikes:
             "creation_date": isoformat(like.creation_date),
         }
         assert response2.status_code == status.HTTP_200_OK
-        assert response2.data["count"] == 1
+        assert len(response2.data["results"]) == 1
         assert response2.data["results"][0]["id"] == like.id
+
+    def test_ordered_by_creation_date(self, list_likes, filter):
+        video = baker.make(Video)
+        like1 = baker.make(Like, video=video)
+        sleep(0.0001)
+        like2 = baker.make(Like, video=video)
+        sleep(0.0001)
+        like3 = baker.make(Like, video=video)
+
+        response = list_likes(
+            filters=[filter(field="video", lookup_type="exact", value=video.id)]
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.data["results"][0]["id"] == like3.id
+        assert response.data["results"][1]["id"] == like2.id
+        assert response.data["results"][2]["id"] == like1.id
 
     def test_filtering_by_video(self, list_likes, filter):
         video1 = baker.make(Video)
         video2 = baker.make(Video)
         like1 = baker.make(Like, video=video1)
+        sleep(0.0001)
         like2 = baker.make(Like, video=video1)
+        sleep(0.0001)
         like3 = baker.make(Like, video=video2)
 
         response = list_likes(
             filters=[filter(field="video", lookup_type="exact", value=video1.id)]
         )
 
-        assert response.data["count"] == 2
+        assert response.data["next"] is None
         assert len(response.data["results"]) == 2
-        assert response.data["results"][0]["id"] == like1.id
-        assert response.data["results"][1]["id"] == like2.id
+        assert response.data["results"][0]["id"] == like2.id
+        assert response.data["results"][1]["id"] == like1.id
 
     def test_filtering_by_profile(self, list_likes, filter):
         profile1 = baker.make(settings.PROFILE_MODEL)
         profile2 = baker.make(settings.PROFILE_MODEL)
         like1 = baker.make(Like, profile=profile1)
+        sleep(0.0001)
         like2 = baker.make(Like, profile=profile1)
+        sleep(0.0001)
         like3 = baker.make(Like, profile=profile2)
 
         response = list_likes(
             filters=[filter(field="profile", lookup_type="exact", value=profile1.id)]
         )
 
-        assert response.data["count"] == 2
+        assert response.data["next"] is None
         assert len(response.data["results"]) == 2
-        assert response.data["results"][0]["id"] == like1.id
-        assert response.data["results"][1]["id"] == like2.id
+        assert response.data["results"][0]["id"] == like2.id
+        assert response.data["results"][1]["id"] == like1.id
 
     def test_ordering_by_creation_date(self, list_likes, filter, ordering):
         video = baker.make(Video)
@@ -313,30 +334,31 @@ class TestListLikes:
         assert response2.data["results"][1]["id"] == like2.id
         assert response2.data["results"][2]["id"] == like1.id
 
-    def test_limit_offset_pagination(self, list_likes, filter, pagination):
+    def test_cursor_pagination(self, list_likes, filter, pagination, api_client):
         video = baker.make(Video)
-        likes = [baker.make(Like, video=video) for i in range(3)]
+        like1 = baker.make(Like, video=video)
+        sleep(0.0001)
+        like2 = baker.make(Like, video=video)
+        sleep(0.0001)
+        like3 = baker.make(Like, video=video)
 
         response1 = list_likes(
             filters=[filter(field="video", lookup_type="exact", value=video.id)],
-            pagination=pagination(type="limit_offset", limit=2),
+            pagination=pagination(type="cursor", page_size=2),
         )
-        response2 = list_likes(
-            filters=[filter(field="video", lookup_type="exact", value=video.id)],
-            pagination=pagination(type="limit_offset", limit=2, offset=2),
-        )
+        response2 = api_client.get(response1.data["next"])
 
-        assert response1.data["count"] == 3
+        assert response1.status_code == status.HTTP_200_OK
+        assert response2.status_code == status.HTTP_200_OK
         assert response1.data["previous"] is None
         assert response1.data["next"] is not None
         assert len(response1.data["results"]) == 2
-        assert response1.data["results"][0]["id"] == likes[0].id
-        assert response1.data["results"][1]["id"] == likes[1].id
-        assert response2.data["count"] == 3
+        assert response1.data["results"][0]["id"] == like3.id
+        assert response1.data["results"][1]["id"] == like2.id
         assert response2.data["previous"] is not None
         assert response2.data["next"] is None
         assert len(response2.data["results"]) == 1
-        assert response2.data["results"][0]["id"] == likes[2].id
+        assert response2.data["results"][0]["id"] == like1.id
 
 
 @pytest.mark.django_db

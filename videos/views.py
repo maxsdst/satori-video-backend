@@ -25,6 +25,7 @@ from .models import CommentLike, HistoryEntry, Like, SavedVideo, Upload, View
 from .pagination import (
     CommentPagination,
     HistoryPagination,
+    LikePagination,
     VideoCursorPagination,
     VideoRecommendationPaginator,
     VideoSearchPagination,
@@ -350,6 +351,7 @@ class LikeViewSet(ModelViewSet):
         "profile": ["exact"],
     }
     ordering_fields = ["creation_date"]
+    pagination_class = LikePagination
 
     def get_serializer_class(self):
         if self.request.method == "POST":
