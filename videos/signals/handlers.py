@@ -42,8 +42,11 @@ def on_post_save_comment(sender, instance: Comment, created: bool, **kwargs):
 
 @receiver(post_delete, sender=Comment)
 def on_post_delete_comment(sender, instance: Comment, **kwargs):
-    if instance.parent:
-        update_comment_popularity_score(instance.parent)
+    try:
+        if instance.parent:
+            update_comment_popularity_score(instance.parent)
+    except Comment.DoesNotExist:
+        pass
 
 
 @receiver(post_save, sender=CommentLike)

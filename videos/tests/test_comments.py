@@ -412,6 +412,20 @@ class TestDeleteComment:
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
+    def test_deletes_comment_with_replies(self, authenticate, user, delete_comment):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        comment = baker.make(Comment, profile=profile)
+        baker.make(Comment, parent=comment)
+        baker.make(Comment, parent=comment)
+        initial_count = Comment.objects.count()
+
+        response = delete_comment(comment.id)
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert initial_count == 3
+        assert Comment.objects.count() == 0
+
 
 @pytest.mark.django_db
 class TestListComments:
