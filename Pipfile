@@ -18,6 +18,7 @@ django-filter = "*"
 freezegun = "*"
 pygorse = "*"
 psycopg = {extras = ["binary"], version = "*"}
+pytest-cov = "*"
 
 [dev-packages]
 gevent = "*"
