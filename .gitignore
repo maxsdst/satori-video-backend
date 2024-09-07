@@ -166,3 +166,4 @@ cython_debug/
 media/
 temp/
 media_test/
+general.log
