@@ -21,16 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-@__74)jxun%=&&y3m^4&(t%1nkbe$)ts6xk6lo0ue2i6i_2$2_"
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
 TEST = False
-
-ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -45,7 +36,6 @@ INSTALLED_APPS = [
     "djoser",
     "django_filters",
     "corsheaders",
-    "debug_toolbar",
     "core",
     "profiles",
     "videos",
@@ -56,7 +46,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -67,7 +56,7 @@ MIDDLEWARE = [
     "videos.middleware.session_id_middleware",
 ]
 
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+DEBUG_TOOLBAR_ENABLED = False
 
 ROOT_URLCONF = "satori_video.urls"
 
@@ -88,20 +77,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "satori_video.wsgi.application"
-
-
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "satori_video",
-        "HOST": "localhost",
-        "USER": "admin",
-        "PASSWORD": "FireIsComing!",
-    }
-}
 
 
 # Password validation
@@ -139,6 +114,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "static"
 
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -171,7 +147,6 @@ DJOSER = {
 
 AUTH_USER_MODEL = "core.User"
 
-CELERY_BROKER_URL = "redis://localhost:6379/1"
 CELERY_BEAT_SCHEDULE = {
     "update_comment_popularity_scores": {
         "task": "videos.tasks.update_comment_popularity_scores",
@@ -215,9 +190,8 @@ NOTIFICATION_MODEL_CONFIG = {
     },
 }
 
-GORSE_ENTRY_POINT = "http://127.0.0.1:8087"
-GORSE_API_KEY = ""
-
+LOGS_DIR = Path(os.environ.get("LOGS_DIR", "./logs/"))
+LOGS_DIR.mkdir(exist_ok=True)
 
 LOGGING = {
     "version": 1,
@@ -229,7 +203,7 @@ LOGGING = {
         },
         "file": {
             "class": "logging.FileHandler",
-            "filename": "general.log",
+            "filename": LOGS_DIR / "general.log",
             "formatter": "verbose",
         },
     },

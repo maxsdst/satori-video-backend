@@ -1,26 +1,36 @@
-name: satori-video-backend-test
+name: satori-video-backend-dev
 
 services:
-  apply_db_migrations:
+  backend:
     build: .
-    environment:
-      DJANGO_SETTINGS_MODULE: satori_video.settings.test
-    command: python manage.py migrate
+    command: ./scripts/docker-entrypoint-dev.sh
+    ports:
+      - 8000:8000
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-    network_mode: host
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    healthcheck:
+      test: ["CMD", "nc", "-z", "-v", "0.0.0.0", "8000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+      start_interval: 1s
 
   postgres:
     image: postgres:16.4-alpine3.20
     restart: unless-stopped
     ports:
-      - 15432:15432
+      - 5432:5432
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./scripts/postgres_initdb:/docker-entrypoint-initdb.d
     environment:
-      PGPORT: 15432
       PGUSER: postgres
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: FireIsComing!
@@ -35,14 +45,13 @@ services:
 
   redis:
     image: redis:7.4.0-alpine3.20
-    command: --port 16379
     restart: unless-stopped
     ports:
-      - 16379:16379
+      - 6379:6379
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -p 16379 ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -51,42 +60,36 @@ services:
 
   celery:
     build: .
-    environment:
-      DJANGO_SETTINGS_MODULE: satori_video.settings.test
     command: celery -A satori_video worker --loglevel=info
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
-      apply_db_migrations:
-        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
     volumes:
       - .:/app
-    network_mode: host
 
   celery_beat:
     build: .
-    environment:
-      DJANGO_SETTINGS_MODULE: satori_video.settings.test
     command: celery -A satori_video beat -s /home/app/celerybeat-schedule --loglevel=info
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
-      apply_db_migrations:
-        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
     volumes:
       - .:/app
-    network_mode: host
 
   gorse_worker:
     image: zhenghaoz/gorse-worker
     restart: unless-stopped
     ports:
-      - 18089
+      - 8089:8089
     command: >
-      --master-host gorse_master --master-port 18086 
-      --http-host 0.0.0.0 --http-port 18089
+      --master-host gorse_master --master-port 8086 
+      --http-host 0.0.0.0 --http-port 8089
       --log-path /var/log/gorse/worker.log 
       --cache-path /var/lib/gorse/worker_cache.data
     volumes:
@@ -99,10 +102,10 @@ services:
     image: zhenghaoz/gorse-server
     restart: unless-stopped
     ports:
-      - 18087:18087
+      - 8087:8087
     command: >
-      --master-host gorse_master --master-port 18086 
-      --http-host 0.0.0.0 --http-port 18087
+      --master-host gorse_master --master-port 8086 
+      --http-host 0.0.0.0 --http-port 8087
       --log-path /var/log/gorse/server.log 
       --cache-path /var/lib/gorse/server_cache.data
     volumes:
@@ -115,13 +118,11 @@ services:
     image: zhenghaoz/gorse-master
     restart: unless-stopped
     ports:
-      - 18086
-      - 18088:18088
+      - 8086:8086
+      - 8088:8088
     environment:
-      GORSE_CACHE_STORE: redis://redis:16379/2
-      GORSE_DATA_STORE: postgres://postgres:FireIsComing!@postgres:15432/gorse?sslmode=disable
-      GORSE_MASTER_PORT: 18086
-      GORSE_MASTER_HTTP_PORT: 18088
+      GORSE_CACHE_STORE: redis://redis:6379/2
+      GORSE_DATA_STORE: postgres://postgres:FireIsComing!@postgres:5432/gorse?sslmode=disable
     command: >
       -c /etc/gorse/config.toml
       --log-path /var/log/gorse/master.log 

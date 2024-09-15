@@ -31,9 +31,11 @@ api_urlpatterns = [
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("__debug__/", include("debug_toolbar.urls")),
     path("api/", include(api_urlpatterns)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+if settings.DEBUG_TOOLBAR_ENABLED:
+    urlpatterns += [path("__debug__/", include("debug_toolbar.urls"))]
 
 if settings.TEST:
     tests_urlpatterns = [
@@ -42,5 +44,4 @@ if settings.TEST:
             include("custompagination.tests.urls", "custompagination_tests"),
         ),
     ]
-
-    urlpatterns.append(path("tests/", include(tests_urlpatterns)))
+    urlpatterns += [path("tests/", include(tests_urlpatterns))]

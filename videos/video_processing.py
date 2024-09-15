@@ -155,7 +155,6 @@ def ffprobe(file: bytes | Generator[bytes, None, None]) -> dict:
     except BrokenPipeError:
         pass
 
-    process.stdin.close()
     output, _ = process.communicate(timeout=10)
 
     if process.returncode != 0:
