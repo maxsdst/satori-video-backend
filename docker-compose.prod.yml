@@ -13,6 +13,7 @@ services:
       REDIS_URL_FILE: /run/secrets/redis_url
       SECRET_KEY_FILE: /run/secrets/secret_key
       GORSE_API_KEY_FILE: /run/secrets/gorse_api_key
+      S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
     command: ./scripts/docker-entrypoint-prod.sh
     ports:
       - 80:8000
@@ -29,6 +30,7 @@ services:
       - redis_url
       - secret_key
       - gorse_api_key
+      - s3_secret_key
 
   celery:
     build:
@@ -42,6 +44,7 @@ services:
       REDIS_URL_FILE: /run/secrets/redis_url
       SECRET_KEY_FILE: /run/secrets/secret_key
       GORSE_API_KEY_FILE: /run/secrets/gorse_api_key
+      S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
     command: celery -A satori_video worker --loglevel=info
     restart: always
     depends_on:
@@ -52,6 +55,7 @@ services:
       - redis_url
       - secret_key
       - gorse_api_key
+      - s3_secret_key
 
   celery_beat:
     build:
@@ -65,6 +69,7 @@ services:
       REDIS_URL_FILE: /run/secrets/redis_url
       SECRET_KEY_FILE: /run/secrets/secret_key
       GORSE_API_KEY_FILE: /run/secrets/gorse_api_key
+      S3_SECRET_KEY_FILE: /run/secrets/s3_secret_key
     command: celery -A satori_video beat -s /home/app/celerybeat-schedule --loglevel=info
     restart: always
     depends_on:
@@ -75,6 +80,7 @@ services:
       - redis_url
       - secret_key
       - gorse_api_key
+      - s3_secret_key
 
   gorse_worker:
     image: zhenghaoz/gorse-worker
@@ -141,3 +147,5 @@ secrets:
     file: /secrets/secret_key
   gorse_api_key:
     file: /secrets/gorse_api_key
+  s3_secret_key:
+    file: /secrets/s3_secret_key

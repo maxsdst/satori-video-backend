@@ -2,6 +2,9 @@ from pathlib import Path
 
 import ffmpeg
 import m3u8
+from django.conf import settings
+from django.core.files.storage import default_storage
+from django.utils.crypto import get_random_string
 from PIL import Image, UnidentifiedImageError
 
 from videos.video_processing import (
@@ -156,75 +159,78 @@ class TestHasAudioStream:
 
 
 class TestMakeHls:
-    def test_hls_playlist_is_created(self, generate_blank_video, temp_dir):
+    def test_hls_playlist_is_created(self, generate_blank_video):
         with generate_blank_video(
             width=320, height=240, duration=1, format="mp4", add_audio=True
         ) as video:
             video_path = Path(video.name)
+            output_dir = get_random_string(10)
 
-            playlist_path = make_hls(video_path, temp_dir)
+            playlist_path = Path(make_hls(video_path, output_dir))
 
             assert playlist_path.suffix == ".m3u8"
-            assert playlist_path.exists()
-            assert (temp_dir / playlist_path.name).exists()
+            assert default_storage.exists(str(Path(output_dir) / playlist_path.name))
 
-    def test_hls_is_valid(self, generate_blank_video, temp_dir):
+    def test_hls_is_valid(self, generate_blank_video):
         with generate_blank_video(
             width=3840, height=2160, duration=1, format="mp4", add_audio=True
         ) as video:
             video_path = Path(video.name)
+            output_dir = get_random_string(10)
 
-            playlist_path = make_hls(video_path, temp_dir)
+            playlist_path = make_hls(video_path, output_dir)
 
-            assert is_valid_hls(playlist_path)
+            assert is_valid_hls(settings.MEDIA_ROOT / playlist_path)
 
 
 class TestCreateThumbnail:
-    def test_thumbnail_is_created(self, generate_blank_video, temp_dir):
+    def test_thumbnail_is_created(self, generate_blank_video):
         with generate_blank_video(
             width=320, height=240, duration=1, format="mp4"
         ) as video:
             video_path = Path(video.name)
+            output_dir = get_random_string(10)
 
-            thumbnail_path = create_thumbnail(video_path, temp_dir)
+            thumbnail_path = Path(create_thumbnail(video_path, output_dir))
 
             assert thumbnail_path.suffix == ".jpg"
-            assert thumbnail_path.exists()
-            assert (temp_dir / thumbnail_path.name).exists()
+            assert default_storage.exists(str(Path(output_dir) / thumbnail_path.name))
 
-    def test_thumbnail_is_valid_image(self, generate_blank_video, temp_dir):
+    def test_thumbnail_is_valid_image(self, generate_blank_video):
         with generate_blank_video(
             width=320, height=240, duration=1, format="mp4"
         ) as video:
             video_path = Path(video.name)
+            output_dir = get_random_string(10)
 
-            thumbnail_path = create_thumbnail(video_path, temp_dir)
+            thumbnail_path = create_thumbnail(video_path, output_dir)
 
-            assert is_valid_image(thumbnail_path)
+            assert is_valid_image(settings.MEDIA_ROOT / thumbnail_path)
 
 
 class TestExtractFirstFrame:
-    def test_first_frame_is_created(self, generate_blank_video, temp_dir):
+    def test_first_frame_is_created(self, generate_blank_video):
         with generate_blank_video(
             width=320, height=240, duration=1, format="mp4"
         ) as video:
             video_path = Path(video.name)
+            output_dir = get_random_string(10)
 
-            first_frame_path = extract_first_frame(video_path, temp_dir)
+            first_frame_path = Path(extract_first_frame(video_path, output_dir))
 
             assert first_frame_path.suffix == ".jpg"
-            assert first_frame_path.exists()
-            assert (temp_dir / first_frame_path.name).exists()
+            assert default_storage.exists(str(Path(output_dir) / first_frame_path.name))
 
-    def test_first_frame_is_valid_image(self, generate_blank_video, temp_dir):
+    def test_first_frame_is_valid_image(self, generate_blank_video):
         with generate_blank_video(
             width=320, height=240, duration=1, format="mp4"
         ) as video:
             video_path = Path(video.name)
+            output_dir = get_random_string(10)
 
-            first_frame_path = extract_first_frame(video_path, temp_dir)
+            first_frame_path = extract_first_frame(video_path, output_dir)
 
-            assert is_valid_image(first_frame_path)
+            assert is_valid_image(settings.MEDIA_ROOT / first_frame_path)
 
 
 class TestGetVideoDuration:

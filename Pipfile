@@ -21,6 +21,7 @@ psycopg = {extras = ["binary"], version = "*"}
 pytest-cov = "*"
 gunicorn = "*"
 dj-database-url = "*"
+django-storages = {extras = ["s3"], version = "*"}
 
 [dev-packages]
 gevent = "*"

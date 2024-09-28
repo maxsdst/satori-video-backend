@@ -2,8 +2,8 @@ import math
 from datetime import datetime
 from pathlib import Path
 
-from django.conf import settings
 from django.core.files.base import File
+from django.core.files.storage import default_storage
 from django.db.models import QuerySet
 from django.db.models.sql.where import WhereNode
 from django.utils import timezone
@@ -17,17 +17,39 @@ from .constants import (
 )
 
 
-def get_media_path(target: Path) -> str:
-    """Get path to the file relative to MEDIA_ROOT folder."""
-
-    relative_path = target.relative_to(settings.MEDIA_ROOT)
-    return relative_path.as_posix()
-
-
 def get_file_extension(file: File) -> str:
     """Get extension of the Django File."""
 
     return Path(file.name).suffix.upper()[1:]
+
+
+def remove_dir(dir: str) -> None:
+    """Remove specified directory from the default storage."""
+
+    if not default_storage.exists(dir):
+        return
+
+    subdirs, files = default_storage.listdir(dir)
+
+    for file in files:
+        default_storage.delete(file)
+
+    for subdir in subdirs:
+        remove_dir(subdir)
+
+
+def save_dir(dir: Path, storage_dir: str) -> None:
+    """Save specified directory in the default storage."""
+
+    storage_dir_path = Path(storage_dir)
+
+    for item in dir.iterdir():
+        if item.is_dir():
+            save_dir(item, str(storage_dir_path / item.name))
+
+        if item.is_file():
+            with open(item, "rb") as file:
+                default_storage.save(str(storage_dir_path / item.name), file)
 
 
 def has_any_filter_applied(

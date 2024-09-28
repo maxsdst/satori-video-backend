@@ -13,6 +13,7 @@ ENV PYTHONUNBUFFERED=1
 ENV LOGS_DIR="/var/log/app/"
 
 WORKDIR /app
+RUN chown app:app /app/
 
 RUN apk update
 
