@@ -201,7 +201,7 @@ class UploadViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         upload: Upload = serializer.save()
 
-        handle_upload.delay(upload.id, self.request.user.profile.id)
+        handle_upload.delay_on_commit(upload.id, self.request.user.profile.id)
 
         serializer = UploadSerializer(upload, context={"request": self.request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)

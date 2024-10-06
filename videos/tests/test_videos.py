@@ -395,6 +395,7 @@ class TestDeleteVideo:
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
+    @pytest.mark.django_db(transaction=True)
     def test_deletes_video_dir(self, authenticate, user, delete_video):
         authenticate(user=user)
         profile = baker.make(settings.PROFILE_MODEL, user=user)

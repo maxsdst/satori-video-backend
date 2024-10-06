@@ -69,24 +69,24 @@ def on_post_save_user_insert_into_recommender(
     sender, instance: AbstractUser, created: bool, **kwargs
 ):
     if created:
-        insert_user_in_recommender_system.delay(instance.id)
+        insert_user_in_recommender_system.delay_on_commit(instance.id)
 
 
 @receiver(post_delete, sender=USER_MODEL)
 def on_post_delete_user_delete_from_recommender(
     sender, instance: AbstractUser, **kwargs
 ):
-    delete_user_from_recommender_system.delay(instance.id)
+    delete_user_from_recommender_system.delay_on_commit(instance.id)
 
 
 @receiver(video_created)
 def on_video_created_insert_into_recommender(sender, video: Video, **kwargs):
-    insert_video_in_recommender_system.delay(video.id)
+    insert_video_in_recommender_system.delay_on_commit(video.id)
 
 
 @receiver(post_delete, sender=Video)
 def on_post_delete_video_delete_from_recommender(sender, instance: Video, **kwargs):
-    delete_video_from_recommender_system.delay(instance.id)
+    delete_video_from_recommender_system.delay_on_commit(instance.id)
 
 
 @receiver(post_save, sender=Event)
@@ -94,7 +94,7 @@ def on_post_save_event_insert_into_recommender(
     sender, instance: Event, created: bool, **kwargs
 ):
     if created:
-        insert_feedback_in_recommender_system.delay(instance.id)
+        insert_feedback_in_recommender_system.delay_on_commit(instance.id)
 
 
 @receiver(view_created)
@@ -192,4 +192,4 @@ def on_post_save_comment_like_notify_comment_owner(
 
 @receiver(post_delete, sender=Video)
 def on_post_delete_video_delete_video_dir(sender, instance: Video, **kwargs):
-    delete_video_dir.delay(instance.id)
+    delete_video_dir.delay_on_commit(instance.id)
