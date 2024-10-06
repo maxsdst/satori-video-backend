@@ -21,17 +21,13 @@ from django.contrib import admin
 from django.urls import include, path
 
 
-api_urlpatterns = [
+urlpatterns = [
+    path("admin/", admin.site.urls),
     path("auth/", include("djoser.urls")),
     path("auth/", include("djoser.urls.jwt")),
     path("profiles/", include("profiles.urls", "profiles")),
     path("videos/", include("videos.urls", "videos")),
     path("notifications/", include("notifications.urls", "notifications")),
-]
-
-urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("api/", include(api_urlpatterns)),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG_TOOLBAR_ENABLED:
