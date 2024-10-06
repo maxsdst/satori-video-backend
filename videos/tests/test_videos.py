@@ -1,13 +1,16 @@
 from datetime import timedelta
+from io import StringIO
 from time import sleep, time
 
 import pytest
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.utils import timezone
+from django.utils.crypto import get_random_string
 from model_bakery import baker
 from rest_framework import status
 
-from videos.models import Comment, Like, SavedVideo, Video, View
+from videos.models import Comment, Like, SavedVideo, Upload, Video, View
 
 
 LIST_VIEWNAME = "videos:videos-list"
@@ -329,6 +332,30 @@ class TestUpdateVideo:
         assert response.data["title"] == new_title
         assert response.data["description"] == new_description
 
+    def test_deletes_upload(self, authenticate, user, update_video):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        video = baker.make(Video, profile=profile)
+        upload = baker.make(Upload, profile=profile, video=video)
+
+        update_video(video.id, {})
+
+        assert not Upload.objects.filter(id=upload.id).exists()
+
+    @pytest.mark.django_db(transaction=True)
+    def test_deletes_upload_file(self, authenticate, user, update_video):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        video = baker.make(Video, profile=profile)
+        file = default_storage.save(
+            f"uploads/{get_random_string(10)}.txt", StringIO("abc")
+        )
+        upload = baker.make(Upload, profile=profile, video=video, file=file)
+
+        update_video(video.id, {})
+
+        assert not default_storage.exists(upload.file.name)
+
 
 @pytest.mark.django_db
 class TestDeleteVideo:
@@ -367,6 +394,23 @@ class TestDeleteVideo:
         response = delete_video(video.id)
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    def test_deletes_video_dir(self, authenticate, user, delete_video):
+        authenticate(user=user)
+        profile = baker.make(settings.PROFILE_MODEL, user=user)
+        video = baker.make(Video, profile=profile)
+        video_dir = settings.MEDIA_ROOT / "videos" / str(video.id)
+        video_dir.mkdir(parents=True)
+        file = video_dir / "file.txt"
+        file.write_text("abc")
+
+        delete_video(video.id)
+        timer = time() + 10
+        while file.exists() and time() < timer:
+            sleep(0.1)
+
+        assert not file.exists()
+        assert not video_dir.exists()
 
 
 @pytest.mark.django_db

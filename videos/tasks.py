@@ -35,7 +35,7 @@ def handle_upload(upload_id: int, profile_id: int) -> None:
         thumbnail="",
     )
 
-    output_dir = "videos/" + str(video.id)
+    output_dir = get_video_dir(video.id)
     remove_dir(output_dir)
 
     video_path = settings.TEMP_DIR / f"{get_random_string(20)}-{upload.filename}"
@@ -61,6 +61,12 @@ def handle_upload(upload_id: int, profile_id: int) -> None:
     upload.video = video
     upload.is_done = True
     upload.save()
+
+
+@shared_task()
+def delete_video_dir(video_id: int) -> None:
+    dir = get_video_dir(video_id)
+    remove_dir(dir)
 
 
 @shared_task()
@@ -194,3 +200,9 @@ def get_upload_file_location(upload: Upload) -> str:
         return upload.file.path
     except NotImplementedError:
         return upload.file.url
+
+
+def get_video_dir(video_id: int) -> str:
+    """Returns the path to the folder storing the video's associated files."""
+
+    return f"videos/{video_id}/"

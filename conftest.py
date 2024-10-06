@@ -69,8 +69,7 @@ def other_user(create_user):
 
 
 @pytest.fixture(autouse=True)
-def media_root_setting(settings):
-    settings.MEDIA_ROOT = settings.BASE_DIR / "media_test"
+def cleanup_media_root(settings):
     shutil.rmtree(settings.MEDIA_ROOT, ignore_errors=True)
     settings.MEDIA_ROOT.mkdir()
     yield

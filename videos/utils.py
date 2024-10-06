@@ -26,16 +26,20 @@ def get_file_extension(file: File) -> str:
 def remove_dir(dir: str) -> None:
     """Remove specified directory from the default storage."""
 
-    if not default_storage.exists(dir):
+    dir_path = Path(dir)
+
+    try:
+        subdirs, files = default_storage.listdir(dir)
+    except FileNotFoundError:
         return
 
-    subdirs, files = default_storage.listdir(dir)
-
     for file in files:
-        default_storage.delete(file)
+        default_storage.delete(str(dir_path / file))
 
     for subdir in subdirs:
-        remove_dir(subdir)
+        remove_dir(str(dir_path / subdir))
+
+    default_storage.delete(dir)
 
 
 def save_dir(dir: Path, storage_dir: str) -> None:

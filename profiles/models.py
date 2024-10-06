@@ -1,9 +1,11 @@
 from django.conf import settings
 from django.db import models, transaction
+from django_cleanup import cleanup
 
 from notifications.models import Notification
 
 
+@cleanup.select
 class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     full_name = models.CharField(max_length=50)

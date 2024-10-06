@@ -17,6 +17,7 @@ from ..models import (
 from ..serializers import CreateHistoryEntrySerializer
 from ..tasks import (
     delete_user_from_recommender_system,
+    delete_video_dir,
     delete_video_from_recommender_system,
     insert_feedback_in_recommender_system,
     insert_user_in_recommender_system,
@@ -31,7 +32,10 @@ USER_MODEL = get_user_model()
 
 @receiver(video_updated)
 def on_video_updated(sender, video: Video, **kwargs):
-    Upload.objects.filter(video=video).delete()
+    try:
+        Upload.objects.get(video=video).delete()
+    except Upload.DoesNotExist:
+        pass
 
 
 @receiver(post_save, sender=Comment)
@@ -184,3 +188,8 @@ def on_post_save_comment_like_notify_comment_owner(
         video=instance.comment.video,
         comment=instance.comment,
     )
+
+
+@receiver(post_delete, sender=Video)
+def on_post_delete_video_delete_video_dir(sender, instance: Video, **kwargs):
+    delete_video_dir.delay(instance.id)

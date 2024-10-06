@@ -2,7 +2,9 @@ from pathlib import Path
 from time import sleep
 
 import pytest
+from django.core.files.storage import default_storage
 from django.urls import reverse
+from django.utils.crypto import get_random_string
 from model_bakery import baker
 from rest_framework import status
 
@@ -391,6 +393,26 @@ class TestUpdateOwnProfile:
         avatar_extension = Path(response.data["avatar"]).suffix[1:]
 
         assert avatar_extension == "jpg"
+
+    @pytest.mark.django_db(transaction=True)
+    def test_old_avatar_gets_deleted(
+        self,
+        authenticate,
+        user,
+        generate_blank_image,
+        update_own_profile,
+    ):
+        authenticate(user=user)
+        avatar = default_storage.save(
+            f"avatars/{get_random_string(10)}.png",
+            generate_blank_image(width=100, height=100, format="PNG"),
+        )
+        profile = baker.make(Profile, user=user, avatar=avatar)
+        new_avatar = generate_blank_image(width=100, height=100, format="PNG")
+
+        update_own_profile({"avatar": new_avatar})
+
+        assert not default_storage.exists(profile.avatar.name)
 
 
 @pytest.mark.django_db

@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models, transaction
+from django_cleanup import cleanup
 
 from notifications.models import Notification
 
@@ -30,6 +31,7 @@ class Video(models.Model):
         return super().delete(*args, **kwargs)
 
 
+@cleanup.select
 class Upload(models.Model):
     profile = models.ForeignKey(
         settings.PROFILE_MODEL, on_delete=models.CASCADE, related_name="uploads"

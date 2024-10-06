@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "notifications",
     "custompagination",
     "custompagination.tests",
+    "django_cleanup.apps.CleanupSelectedConfig",
 ]
 
 MIDDLEWARE = [

@@ -7,6 +7,8 @@ TEST = True
 
 SECRET_KEY = "django-insecure-@__74)jxun%=&&y3m^4&(t%1nkbe$)ts6xk6lo0ue2i6i_2$2_"
 
+MEDIA_ROOT = BASE_DIR / "media_test"
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
