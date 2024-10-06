@@ -20,7 +20,7 @@ from .video_processing import (
 )
 
 
-@shared_task()
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=10)
 @transaction.atomic()
 def handle_upload(upload_id: int, profile_id: int) -> None:
     upload = Upload.objects.get(id=upload_id)
@@ -63,7 +63,7 @@ def handle_upload(upload_id: int, profile_id: int) -> None:
     upload.save()
 
 
-@shared_task()
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=10)
 def delete_video_dir(video_id: int) -> None:
     dir = get_video_dir(video_id)
     remove_dir(dir)
@@ -126,7 +126,7 @@ def sync_recommender_system_data() -> None:
     )
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def insert_user_in_recommender_system(user_id: int) -> None:
     gorse = get_gorse_client()
     gorse.insert_user(
@@ -139,13 +139,13 @@ def insert_user_in_recommender_system(user_id: int) -> None:
     )
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def delete_user_from_recommender_system(user_id: int) -> None:
     gorse = get_gorse_client()
     gorse.delete_user(user_id)
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def insert_video_in_recommender_system(video_id: int) -> None:
     try:
         video = Video.objects.get(id=video_id)
@@ -165,13 +165,13 @@ def insert_video_in_recommender_system(video_id: int) -> None:
     )
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def delete_video_from_recommender_system(video_id: int) -> None:
     gorse = get_gorse_client()
     gorse.delete_item(video_id)
 
 
-@shared_task
+@shared_task(autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def insert_feedback_in_recommender_system(event_id: int) -> None:
     try:
         event = Event.objects.get(id=event_id)
