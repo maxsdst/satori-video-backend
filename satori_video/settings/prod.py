@@ -12,6 +12,10 @@ DEBUG = False
 
 SECRET_KEY = Path(os.environ["SECRET_KEY_FILE"]).read_text()
 
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+
 ALLOWED_HOSTS = re.split("\s*,\s*", os.environ["ALLOWED_HOSTS"])
 
 CORS_ALLOWED_ORIGINS = [
