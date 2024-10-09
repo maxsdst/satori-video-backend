@@ -1,4 +1,5 @@
 import os
+import re
 import ssl
 from pathlib import Path
 
@@ -11,7 +12,7 @@ DEBUG = False
 
 SECRET_KEY = Path(os.environ["SECRET_KEY_FILE"]).read_text()
 
-ALLOWED_HOSTS = ["." + os.environ["DOMAIN_NAME"]]
+ALLOWED_HOSTS = re.split("\s*,\s*", os.environ["ALLOWED_HOSTS"])
 
 CORS_ALLOWED_ORIGINS = [
     "http://" + os.environ["DOMAIN_NAME"],
